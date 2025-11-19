@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { Passenger } from '@/types/global';
 
-interface IPassenger extends Document, Passenger {}
+interface IPassenger extends Omit<Passenger, '_id'>, Document {}
 
 const passengerSchema = new Schema<IPassenger>(
   {

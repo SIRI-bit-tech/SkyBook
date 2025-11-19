@@ -1,8 +1,10 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
 import { User } from '@/types/global';
 import bcrypt from 'bcryptjs';
 
-interface IUser extends Document, User {}
+interface IUser extends Omit<User, '_id' | 'savedPassengers'>, Document {
+  savedPassengers: Types.ObjectId[];
+}
 
 const userSchema = new Schema<IUser>(
   {

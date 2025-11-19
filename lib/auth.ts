@@ -7,7 +7,7 @@ import { connectToDatabase } from "./mongodb";
 connectToDatabase();
 
 export const auth = betterAuth({
-  database: mongodbAdapter(mongoose.connection),
+  database: mongodbAdapter(mongoose.connection.db!),
   emailAndPassword: {
     enabled: true,
   },
@@ -22,11 +22,11 @@ export const auth = betterAuth({
     },
   },
   session: {
-    freshTokenExpires: 60 * 60 * 24 * 7, // 7 days
+    expiresIn: 60 * 60 * 24 * 7, // 7 days
   },
   secret: process.env.BETTER_AUTH_SECRET || "your-secret-key",
   baseURL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
   basePath: "/api/auth",
 });
 
-export type Session = typeof auth.$Inferred.Session;
+export type Session = typeof auth.$Infer.Session;
