@@ -12,10 +12,10 @@ import { Flight } from '@/types/global';
 export function parseDuration(duration: string): number {
   const matches = duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
   if (!matches) return 0;
-  
+
   const hours = parseInt(matches[1] || '0');
   const minutes = parseInt(matches[2] || '0');
-  
+
   return hours * 60 + minutes;
 }
 
@@ -26,7 +26,7 @@ export function parseDuration(duration: string): number {
 export function formatDuration(minutes: number): string {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
-  
+
   if (hours === 0) return `${mins}m`;
   if (mins === 0) return `${hours}h`;
   return `${hours}h ${mins}m`;
@@ -37,7 +37,7 @@ export function formatDuration(minutes: number): string {
  */
 export function formatPrice(amount: number | string, currency: string = 'USD'): string {
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-  
+
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency,
@@ -68,7 +68,7 @@ export function getAirlineName(code: string): string {
     'AF': 'Air France',
     'KL': 'KLM',
   };
-  
+
   return airlines[code] || code;
 }
 
@@ -76,31 +76,45 @@ export function getAirlineName(code: string): string {
  * Transform Amadeus flight offer to our Flight model
  */
 export function transformAmadeusToFlight(offer: any, airlineId?: string): Partial<Flight> {
-  const firstSegment = offer.itineraries[0].segments[0];
-  const lastSegment = offer.itineraries[0].segments[offer.itineraries[0].segments.length - 1];
-  
+  const segments = offer?.itineraries?.[0]?.segments;
+  const firstSegment = segments?.[0];
+  const lastSegment = segments?.[segments.length - 1];
+
+  const carrierCode = firstSegment?.carrierCode || '';
+  const flightNumber = firstSegment?.number || '';
+  const departureIata = firstSegment?.departure?.iataCode || '';
+  const departureTime = firstSegment?.departure?.at || new Date(0).toISOString();
+  const departureTerminal = firstSegment?.departure?.terminal;
+  const arrivalIata = lastSegment?.arrival?.iataCode || '';
+  const arrivalTime = lastSegment?.arrival?.at || new Date(0).toISOString();
+  const arrivalTerminal = lastSegment?.arrival?.terminal;
+  const aircraftCode = firstSegment?.aircraft?.code || 'Unknown';
+  const availableSeats = offer?.numberOfBookableSeats || 0;
+  const priceTotal = parseFloat(offer?.price?.total || '0');
+  const duration = offer?.itineraries?.[0]?.duration || 'PT0H0M';
+
   return {
-    flightNumber: `${firstSegment.carrierCode}${firstSegment.number}`,
+    flightNumber: `${carrierCode}${flightNumber}`,
     airline: airlineId, // Will be populated from database
     departure: {
-      airport: firstSegment.departure.iataCode,
-      time: new Date(firstSegment.departure.at),
-      terminal: firstSegment.departure.terminal,
+      airport: departureIata,
+      time: new Date(departureTime),
+      terminal: departureTerminal,
     },
     arrival: {
-      airport: lastSegment.arrival.iataCode,
-      time: new Date(lastSegment.arrival.at),
-      terminal: lastSegment.arrival.terminal,
+      airport: arrivalIata,
+      time: new Date(arrivalTime),
+      terminal: arrivalTerminal,
     },
-    aircraft: firstSegment.aircraft.code,
-    availableSeats: offer.numberOfBookableSeats,
+    aircraft: aircraftCode,
+    availableSeats: availableSeats,
     price: {
-      economy: parseFloat(offer.price.total),
-      business: parseFloat(offer.price.total) * 2.5, // Estimate
-      firstClass: parseFloat(offer.price.total) * 4, // Estimate
+      economy: priceTotal,
+      business: priceTotal * 2.5, // Estimate
+      firstClass: priceTotal * 4, // Estimate
     },
     status: 'scheduled',
-    duration: parseDuration(offer.itineraries[0].duration),
+    duration: parseDuration(duration),
   };
 }
 
@@ -111,7 +125,7 @@ export function formatFlightSearchResult(offer: any) {
   const firstSegment = offer.itineraries[0].segments[0];
   const lastSegment = offer.itineraries[0].segments[offer.itineraries[0].segments.length - 1];
   const segments = offer.itineraries[0].segments;
-  
+
   return {
     id: offer.id,
     flightNumber: `${firstSegment.carrierCode}${firstSegment.number}`,
@@ -152,8 +166,29 @@ export function formatFlightSearchResult(offer: any) {
  * Cache key generator for flight searches
  */
 export function generateCacheKey(params: Record<string, any>): string {
-  return Object.keys(params)
-    .sort()
-    .map(key => `${key}=${params[key]}`)
-    .join('&');
+  const sortedKeys = Object.keys(params).sort();
+  const sortedParams: Record<string, any> = {};
+
+  for (const key of sortedKeys) {
+    sortedParams[key] = params[key];
+  }
+
+  const seen = new WeakSet();
+
+  const replacer = (key: string, value: any): any => {
+    if (value === undefined) {
+      return null;
+    }
+
+    if (typeof value === 'object' && value !== null) {
+      if (seen.has(value)) {
+        return '[Circular]';
+      }
+      seen.add(value);
+    }
+
+    return value;
+  };
+
+  return JSON.stringify(sortedParams, replacer);
 }

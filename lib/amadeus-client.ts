@@ -79,12 +79,12 @@ class AmadeusClient {
   private tokenExpiry: number | null = null;
 
   private getCredentials() {
-    const apiKey = process.env.AMADEUS_API_KEY || '';
-    const apiSecret = process.env.AMADEUS_API_SECRET || '';
+    const apiKey = process.env.AMADEUS_API_KEY;
+    const apiSecret = process.env.AMADEUS_API_SECRET;
     const baseUrl = process.env.AMADEUS_API_BASE_URL || 'https://test.api.amadeus.com';
 
     if (!apiKey || !apiSecret) {
-      console.warn('Amadeus API credentials not configured. Using database fallback.');
+      throw new Error('Amadeus API credentials not configured (AMADEUS_API_KEY/SECRET).');
     }
 
     return { apiKey, apiSecret, baseUrl };
@@ -198,7 +198,7 @@ class AmadeusClient {
       return response.data.data || [];
     } catch (error) {
       console.error('Amadeus inspiration search error:', error);
-      return [];
+      throw error;
     }
   }
 
@@ -227,7 +227,7 @@ class AmadeusClient {
       return response.data.data || [];
     } catch (error) {
       console.error('Amadeus airport search error:', error);
-      return [];
+      throw error;
     }
   }
 
@@ -254,7 +254,7 @@ class AmadeusClient {
       return response.data.data?.[0] || null;
     } catch (error) {
       console.error('Amadeus airline data error:', error);
-      return null;
+      throw error;
     }
   }
 }
