@@ -1,7 +1,25 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
 import { Booking } from '@/types/global';
 
-interface IBooking extends Document, Booking {}
+interface IBooking extends Omit<Booking, '_id' | 'user' | 'flight' | 'passengers' | 'paymentId'>, Document {
+  user: Types.ObjectId;
+  flight: Types.ObjectId;
+  passengers: Types.ObjectId[];
+  paymentId?: Types.ObjectId;
+  baggage?: number;
+  meals?: 'none' | 'standard' | 'vegetarian' | 'vegan' | 'halal' | 'kosher';
+  specialRequests?: string;
+  travelInsurance?: boolean;
+  insurancePrice?: number;
+  addOns?: Array<{
+    name: string;
+    price: number;
+    quantity: number;
+  }>;
+  baseFare?: number;
+  taxes?: number;
+  addOnTotal?: number;
+}
 
 const bookingSchema = new Schema<IBooking>(
   {

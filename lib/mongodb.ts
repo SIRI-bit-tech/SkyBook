@@ -1,9 +1,10 @@
-import mongoose from 'mongoose';
+import mongoose, { Mongoose } from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/skybook';
-
-if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable');
+declare global {
+  var mongoose: {
+    conn: Mongoose | null;
+    promise: Promise<Mongoose> | null;
+  };
 }
 
 // Singleton pattern for MongoDB connection
@@ -14,6 +15,13 @@ if (!cached) {
 }
 
 export async function connectToDatabase() {
+  // Get URI at runtime, not at module load time
+  const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/skybook';
+
+  if (!MONGODB_URI) {
+    throw new Error('Please define the MONGODB_URI environment variable');
+  }
+
   if (cached.conn) {
     return cached.conn;
   }
@@ -23,11 +31,7 @@ export async function connectToDatabase() {
       bufferCommands: false,
     };
 
-    cached.promise = mongoose
-      .connect(MONGODB_URI, opts)
-      .then((mongoose) => {
-        return mongoose;
-      });
+    cached.promise = mongoose.connect(MONGODB_URI, opts);
   }
 
   try {
@@ -38,11 +42,4 @@ export async function connectToDatabase() {
   }
 
   return cached.conn;
-}
-
-declare global {
-  var mongoose: {
-    conn: typeof mongoose | null;
-    promise: Promise<typeof mongoose> | null;
-  };
 }

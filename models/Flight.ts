@@ -1,7 +1,19 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
 import { Flight } from '@/types/global';
 
-interface IFlight extends Document, Flight {}
+interface IFlight extends Omit<Flight, '_id' | 'airline' | 'departure' | 'arrival'>, Document {
+  airline: Types.ObjectId;
+  departure: {
+    airport: Types.ObjectId;
+    time: Date;
+    terminal?: string;
+  };
+  arrival: {
+    airport: Types.ObjectId;
+    time: Date;
+    terminal?: string;
+  };
+}
 
 const flightSchema = new Schema<IFlight>(
   {

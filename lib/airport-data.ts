@@ -55,7 +55,7 @@ export function searchAirports(query: string) {
 }
 
 export function getAirportByCode(code: string) {
-  return airportDatabase[code.toUpperCase()] || null;
+  return airportDatabase[code.toUpperCase() as keyof typeof airportDatabase] || null;
 }
 
 export function getAirlineByCode(code: string) {
