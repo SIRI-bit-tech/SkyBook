@@ -318,14 +318,60 @@ function FlightCard({
                     width={48}
                     height={48}
                     className="object-contain"
-                    onError={(e) => {
-                      // Fallback to text if image fails
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                      if (target.parentElement) {
-                        target.parentElement.innerHTML = `<span class="text-xs font-bold text-slate-800">${code}</span>`;
-                      }
-                    }}
+function FlightCard({ 
+  flight, 
+  isComparing, 
+  onToggleCompare 
+}: { 
+  flight: any;
+  isComparing?: boolean;
+  onToggleCompare?: () => void;
+}) {
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+  const itinerary = flight.itineraries?.[0];
+  const segments = itinerary?.segments || [];
+  const firstSegment = segments[0];
+  const lastSegment = segments[segments.length - 1];
+  const stops = segments.length - 1;
+
+  const departureTime = firstSegment?.departure?.at;
+  const arrivalTime = lastSegment?.arrival?.at;
+  const duration = itinerary?.duration;
+  const price = flight.price?.total;
+  const currency = flight.price?.currency;
+  const airlines = flight.validatingAirlineCodes || [];
+
+  return (
+    <Card className={`bg-slate-800 border-slate-700 p-6 hover:border-sky-500 transition ${isComparing ? 'border-sky-500 ring-2 ring-sky-500' : ''}`}>
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+        {/* Airline Logo */}
+        <div className="md:col-span-2">
+          <div className="flex flex-col gap-2">
+            {airlines.slice(0, 2).map((code: string, idx: number) => (
+              <div key={idx} className="flex items-center gap-2">
+                <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center p-1 overflow-hidden">
+                  {imageErrors[code] ? (
+                    <span className="text-xs font-bold text-slate-800">{code}</span>
+                  ) : (
+                    <Image
+                      src={getAirlineLogo(code)}
+                      alt={code}
+                      width={48}
+                      height={48}
+                      className="object-contain"
+                      onError={() => setImageErrors(prev => ({ ...prev, [code]: true }))}
+                    />
+                  )}
+                </div>
+                <span className="text-sm text-slate-300">{getAirlineName(code)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
                   />
                 </div>
                 <span className="text-sm text-slate-300">{getAirlineName(code)}</span>
