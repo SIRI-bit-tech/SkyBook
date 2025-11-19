@@ -122,12 +122,12 @@ export function formatFlightSearchResult(offer: any) {
     departure: {
       airport: firstSegment.departure.iataCode,
       time: firstSegment.departure.at,
-      terminal: firstSegment.departure.terminal,
+      terminal: firstSegment.departure.terminal || undefined,
     },
     arrival: {
       airport: lastSegment.arrival.iataCode,
       time: lastSegment.arrival.at,
-      terminal: lastSegment.arrival.terminal,
+      terminal: lastSegment.arrival.terminal || undefined,
     },
     duration: formatDuration(parseDuration(offer.itineraries[0].duration)),
     durationMinutes: parseDuration(offer.itineraries[0].duration),
