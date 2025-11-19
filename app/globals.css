@@ -1,0 +1,229 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Geist', 'Geist Fallback';
+  --font-mono: 'Geist Mono', 'Geist Mono Fallback';
+  
+  --color-background: #F8FAFC;
+  --color-foreground: #0F172A;
+  --color-border: #e2e8f0;
+  
+  --color-primary: #0F172A;
+  --color-primary-light: #1e293b;
+  --color-accent: #0EA5E9;
+  --color-accent-dark: #0284c7;
+  
+  --color-success: #10B981;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+  
+  --color-neutral: #64748B;
+  --color-neutral-light: #f1f5f9;
+  --color-neutral-dark: #1e293b;
+  
+  --radius: 0.625rem;
+}
+
+:root {
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+}
+
+.dark {
+  --color-background: #0F172A;
+  --color-foreground: #FFFFFF;
+  --color-border: #334155;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
+  
+  /* Add consistent font sizing and line heights for accessibility */
+  h1 {
+    @apply text-4xl font-bold leading-tight tracking-tight;
+  }
+  
+  h2 {
+    @apply text-3xl font-bold leading-snug tracking-tight;
+  }
+  
+  h3 {
+    @apply text-2xl font-bold leading-snug;
+  }
+  
+  h4 {
+    @apply text-xl font-semibold leading-relaxed;
+  }
+  
+  h5 {
+    @apply text-lg font-semibold leading-relaxed;
+  }
+  
+  h6 {
+    @apply text-base font-semibold leading-relaxed;
+  }
+  
+  p, li {
+    @apply leading-relaxed text-base;
+  }
+}
+
+/* Add loading states with animations */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes pulse-loading {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    #f1f5f9 25%,
+    #e2e8f0 50%,
+    #f1f5f9 75%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
+
+.loading-pulse {
+  animation: pulse-loading 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.loading-spinner {
+  animation: spin-slow 1s linear infinite;
+}
+
+/* Add click feedback and button interactions */
+button, 
+[role="button"],
+.cursor-pointer {
+  @apply transition-all duration-200 ease-in-out;
+  
+  &:active {
+    @apply scale-95;
+  }
+  
+  &:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+}
+
+.btn-feedback {
+  @apply active:scale-95 active:shadow-inner transition-all duration-150;
+}
+
+/* Enhance spacing consistency */
+.card-spacing {
+  @apply p-6 md:p-8;
+}
+
+.section-spacing {
+  @apply py-12 md:py-20;
+}
+
+.section-spacing-sm {
+  @apply py-8 md:py-12;
+}
+
+/* Aviation-focused UI styles */
+.flight-card {
+  @apply border border-slate-200 dark:border-slate-700 rounded-lg p-4 hover:shadow-lg transition-all duration-300;
+}
+
+.flight-card:active {
+  @apply scale-98;
+}
+
+.airline-badge {
+  @apply inline-flex items-center gap-2 px-3 py-1 bg-sky-100 dark:bg-sky-900 text-sky-900 dark:text-sky-100 rounded-full text-sm font-medium;
+}
+
+.seat-available {
+  @apply bg-emerald-100 dark:bg-emerald-900 border-2 border-emerald-500 cursor-pointer hover:bg-emerald-200 transition-all duration-200;
+}
+
+.seat-available:active {
+  @apply scale-90;
+}
+
+.seat-reserved {
+  @apply bg-slate-300 dark:bg-slate-600 border-2 border-slate-400 cursor-not-allowed opacity-60;
+}
+
+.seat-selected {
+  @apply bg-sky-500 dark:bg-sky-600 border-2 border-sky-700 text-white scale-105 shadow-lg;
+}
+
+.btn-primary {
+  @apply bg-slate-900 dark:bg-sky-600 text-white hover:bg-slate-800 dark:hover:bg-sky-700 px-6 py-2 rounded-lg font-medium transition-all duration-200 active:scale-95;
+}
+
+.btn-secondary {
+  @apply bg-sky-500 dark:bg-sky-600 text-white hover:bg-sky-600 dark:hover:bg-sky-700 px-6 py-2 rounded-lg font-medium transition-all duration-200 active:scale-95;
+}
+
+/* Add form field spacing and feedback */
+input, 
+textarea, 
+select {
+  @apply transition-all duration-200;
+  
+  &:focus {
+    @apply ring-2 ring-sky-500 ring-offset-0;
+  }
+  
+  &:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+}
+
+/* Improve text readability and contrast */
+.text-high-contrast {
+  @apply font-medium text-gray-900 dark:text-white;
+}
+
+.text-readable {
+  @apply leading-relaxed text-gray-700 dark:text-gray-300;
+}
+
+/* Consistent link styling */
+a {
+  @apply transition-colors duration-200;
+  
+  &:not([class]) {
+    @apply text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 underline;
+  }
+}
