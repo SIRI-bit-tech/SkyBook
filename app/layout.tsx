@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
+import { SessionProvider } from '@/components/providers/SessionProvider'
 import './globals.css'
 
 const geist = Geist({ subsets: ["latin"] });
@@ -42,7 +43,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geist.className} font-sans antialiased`}>
-        {children}
+        <SessionProvider>
+          {children}
+        </SessionProvider>
         <Analytics />
       </body>
     </html>
