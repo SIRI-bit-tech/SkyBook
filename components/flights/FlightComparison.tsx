@@ -1,15 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { X, Check } from 'lucide-react';
 import { formatDuration, formatTime, formatDate } from '@/lib/flight-utils';
 import { getAirlineLogo, getAirlineName } from '@/lib/airline-logos';
+import { Flight } from './FlightResults';
 import Image from 'next/image';
 
 interface FlightComparisonProps {
-  flights: any[];
+  flights: Flight[];
   onClose: () => void;
 }
 
@@ -43,7 +44,7 @@ export default function FlightComparison({ flights, onClose }: FlightComparisonP
   );
 }
 
-function ComparisonCard({ flight }: { flight: any }) {
+function ComparisonCard({ flight }: { flight: Flight }) {
   const itinerary = flight.itineraries?.[0];
   const segments = itinerary?.segments || [];
   const firstSegment = segments[0];
@@ -73,7 +74,7 @@ function ComparisonCard({ flight }: { flight: any }) {
       {/* Price */}
       <div className="mb-4">
         <p className="text-3xl font-bold text-white">
-          {flight.price?.currency} {parseFloat(flight.price?.total).toFixed(2)}
+          {flight.price.currency} {parseFloat(flight.price.total).toFixed(2)}
         </p>
       </div>
 
@@ -82,19 +83,19 @@ function ComparisonCard({ flight }: { flight: any }) {
         <div className="flex justify-between">
           <span className="text-slate-400">Departure</span>
           <span className="text-white font-medium">
-            {formatTime(firstSegment?.departure?.at)}
+            {formatTime(firstSegment?.departure.at, firstSegment?.departure.timeZone)}
           </span>
         </div>
         <div className="flex justify-between">
           <span className="text-slate-400">Arrival</span>
           <span className="text-white font-medium">
-            {formatTime(lastSegment?.arrival?.at)}
+            {formatTime(lastSegment?.arrival.at, lastSegment?.arrival.timeZone)}
           </span>
         </div>
         <div className="flex justify-between">
           <span className="text-slate-400">Duration</span>
           <span className="text-white font-medium">
-            {formatDuration(itinerary?.duration)}
+            {formatDuration(itinerary?.duration || 'PT0H')}
           </span>
         </div>
         <div className="flex justify-between">

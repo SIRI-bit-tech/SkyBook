@@ -4,28 +4,82 @@ import { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plane, Clock, Calendar, Users, GitCompare } from 'lucide-react';
-import { formatDuration, formatTime, formatDate } from '@/lib/flight-utils';
+import { formatDuration, formatTime, formatDate, parseDuration } from '@/lib/flight-utils';
 import { getAirlineLogo, getAirlineName } from '@/lib/airline-logos';
 import FlightComparison from './FlightComparison';
 import Image from 'next/image';
 
+export interface FlightSegment {
+  departure: {
+    iataCode: string;
+    at: string;
+    terminal?: string;
+    timeZone?: string;
+  };
+  arrival: {
+    iataCode: string;
+    at: string;
+    terminal?: string;
+    timeZone?: string;
+  };
+  carrierCode: string;
+  number: string;
+  flightNumber: string;
+  duration: string;
+  aircraft?: {
+    code: string;
+  };
+}
+
+export interface Flight {
+  id: string;
+  airline: {
+    code: string;
+    name: string;
+  };
+  price: {
+    amount: number;
+    currency: string;
+    total: string;
+  };
+  departure: {
+    airport: string;
+    time: string;
+  };
+  arrival: {
+    airport: string;
+    time: string;
+  };
+  duration: string;
+  stops: number;
+  segments: FlightSegment[];
+  validatingAirlineCodes?: string[];
+  numberOfBookableSeats?: number;
+  itineraries?: Array<{
+    duration: string;
+    segments: FlightSegment[];
+  }>;
+}
+
+export interface Filters {
+  airlines: string[];
+  priceRange: [number, number];
+  stops: number[];
+  departureTime: string[];
+}
+
 interface FlightResultsProps {
-  flights: any[];
+  flights: Flight[];
   loading: boolean;
   error: string | null;
-  filters: {
-    airlines: string[];
-    priceRange: [number, number];
-    stops: number[];
-    departureTime: string[];
-  };
+  filters: Filters;
 }
 
 type SortOption = 'price-low' | 'price-high' | 'duration-short' | 'duration-long' | 'departure-early' | 'departure-late';
 
 export default function FlightResults({ flights, loading, error, filters }: FlightResultsProps) {
   const [sortBy, setSortBy] = useState<SortOption>('price-low');
-  const [compareFlights, setCompareFlights] = useState<any[]>([]);
+  const [compareFlights, setCompareFlights] = useState<Flight[]>([]);
   const [showComparison, setShowComparison] = useState(false);
   const { airlines: selectedAirlines, priceRange, stops: selectedStops, departureTime } = filters;
 
@@ -37,20 +91,20 @@ export default function FlightResults({ flights, loading, error, filters }: Flig
     if (selectedAirlines.length > 0) {
       result = result.filter(flight => {
         const airlineCodes = flight.validatingAirlineCodes || [];
-        return airlineCodes.some((code: string) => selectedAirlines.includes(code));
+        return airlineCodes.some(code => selectedAirlines.includes(code));
       });
     }
 
     // Apply price filter
     result = result.filter(flight => {
-      const price = parseFloat(flight.price?.total || '0');
+      const price = parseFloat(flight.price.total);
       return price >= priceRange[0] && price <= priceRange[1];
     });
 
     // Apply stops filter
     if (selectedStops.length > 0) {
       result = result.filter(flight => {
-        const stops = flight.itineraries?.[0]?.segments?.length - 1 || 0;
+        const stops = flight.itineraries?.[0]?.segments.length ? flight.itineraries[0].segments.length - 1 : 0;
         return selectedStops.some(maxStops => {
           if (maxStops === 0) return stops === 0;
           if (maxStops === 1) return stops === 1;
@@ -62,7 +116,10 @@ export default function FlightResults({ flights, loading, error, filters }: Flig
     // Apply departure time filter
     if (departureTime.length > 0) {
       result = result.filter(flight => {
-        const depTime = new Date(flight.itineraries?.[0]?.segments?.[0]?.departure?.at);
+        const firstSegment = flight.itineraries?.[0]?.segments[0];
+        if (!firstSegment) return false;
+        
+        const depTime = new Date(firstSegment.departure.at);
         const hour = depTime.getHours();
         
         return departureTime.some(period => {
@@ -79,9 +136,9 @@ export default function FlightResults({ flights, loading, error, filters }: Flig
     result.sort((a, b) => {
       switch (sortBy) {
         case 'price-low':
-          return parseFloat(a.price?.total || '0') - parseFloat(b.price?.total || '0');
+          return parseFloat(a.price.total) - parseFloat(b.price.total);
         case 'price-high':
-          return parseFloat(b.price?.total || '0') - parseFloat(a.price?.total || '0');
+          return parseFloat(b.price.total) - parseFloat(a.price.total);
         case 'duration-short': {
           const durationA = parseDuration(a.itineraries?.[0]?.duration || 'PT0H');
           const durationB = parseDuration(b.itineraries?.[0]?.duration || 'PT0H');
@@ -93,13 +150,17 @@ export default function FlightResults({ flights, loading, error, filters }: Flig
           return durationB - durationA;
         }
         case 'departure-early': {
-          const timeA = new Date(a.itineraries?.[0]?.segments?.[0]?.departure?.at || 0).getTime();
-          const timeB = new Date(b.itineraries?.[0]?.segments?.[0]?.departure?.at || 0).getTime();
+          const segmentA = a.itineraries?.[0]?.segments[0];
+          const segmentB = b.itineraries?.[0]?.segments[0];
+          const timeA = segmentA ? new Date(segmentA.departure.at).getTime() : 0;
+          const timeB = segmentB ? new Date(segmentB.departure.at).getTime() : 0;
           return timeA - timeB;
         }
         case 'departure-late': {
-          const timeA = new Date(a.itineraries?.[0]?.segments?.[0]?.departure?.at || 0).getTime();
-          const timeB = new Date(b.itineraries?.[0]?.segments?.[0]?.departure?.at || 0).getTime();
+          const segmentA = a.itineraries?.[0]?.segments[0];
+          const segmentB = b.itineraries?.[0]?.segments[0];
+          const timeA = segmentA ? new Date(segmentA.departure.at).getTime() : 0;
+          const timeB = segmentB ? new Date(segmentB.departure.at).getTime() : 0;
           return timeB - timeA;
         }
         default:
@@ -143,8 +204,14 @@ export default function FlightResults({ flights, loading, error, filters }: Flig
     );
   }
 
-  const toggleCompare = (flight: any) => {
+  const toggleCompare = (flight: Flight) => {
     setCompareFlights(prev => {
+      // Validate flight and flight.id
+      if (!flight || flight.id == null) {
+        console.warn('Cannot compare flight: missing flight or flight.id');
+        return prev;
+      }
+
       const exists = prev.find(f => f.id === flight.id);
       if (exists) {
         return prev.filter(f => f.id !== flight.id);
@@ -212,26 +279,28 @@ export default function FlightResults({ flights, loading, error, filters }: Flig
   );
 }
 
+interface FlightCardProps {
+  flight: Flight;
+  isComparing?: boolean;
+  onToggleCompare?: () => void;
+}
+
 function FlightCard({ 
   flight, 
   isComparing, 
   onToggleCompare 
-}: { 
-  flight: any;
-  isComparing?: boolean;
-  onToggleCompare?: () => void;
-}) {
+}: FlightCardProps) {
   const itinerary = flight.itineraries?.[0];
   const segments = itinerary?.segments || [];
   const firstSegment = segments[0];
   const lastSegment = segments[segments.length - 1];
   const stops = segments.length - 1;
 
-  const departureTime = firstSegment?.departure?.at;
-  const arrivalTime = lastSegment?.arrival?.at;
+  const departureTime = firstSegment?.departure.at;
+  const arrivalTime = lastSegment?.arrival.at;
   const duration = itinerary?.duration;
-  const price = flight.price?.total;
-  const currency = flight.price?.currency;
+  const price = flight.price.total;
+  const currency = flight.price.currency;
   const airlines = flight.validatingAirlineCodes || [];
 
   return (
@@ -240,7 +309,7 @@ function FlightCard({
         {/* Airline Logo */}
         <div className="md:col-span-2">
           <div className="flex flex-col gap-2">
-            {airlines.slice(0, 2).map((code: string, idx: number) => (
+            {airlines.slice(0, 2).map((code, idx) => (
               <div key={idx} className="flex items-center gap-2">
                 <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center p-1 overflow-hidden">
                   <Image
@@ -319,9 +388,9 @@ function FlightCard({
           <div className="flex items-center justify-between">
             {/* Departure */}
             <div className="text-center">
-              <p className="text-2xl font-bold text-white">{formatTime(departureTime)}</p>
-              <p className="text-sm text-slate-400">{firstSegment?.departure?.iataCode}</p>
-              <p className="text-xs text-slate-500">{formatDate(departureTime)}</p>
+              <p className="text-2xl font-bold text-white">{formatTime(departureTime, firstSegment?.departure.timeZone)}</p>
+              <p className="text-sm text-slate-400">{firstSegment?.departure.iataCode}</p>
+              <p className="text-xs text-slate-500">{formatDate(departureTime, firstSegment?.departure.timeZone)}</p>
             </div>
 
             {/* Duration & Stops */}
@@ -331,7 +400,7 @@ function FlightCard({
                   <Plane className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-5 h-5 text-sky-400 rotate-90" />
                 </div>
                 <div className="text-center mt-2">
-                  <p className="text-sm text-slate-400">{formatDuration(duration)}</p>
+                  <p className="text-sm text-slate-400">{formatDuration(duration || 'PT0H')}</p>
                   <p className="text-xs text-slate-500">
                     {stops === 0 ? 'Non-stop' : `${stops} ${stops === 1 ? 'stop' : 'stops'}`}
                   </p>
@@ -341,16 +410,16 @@ function FlightCard({
 
             {/* Arrival */}
             <div className="text-center">
-              <p className="text-2xl font-bold text-white">{formatTime(arrivalTime)}</p>
-              <p className="text-sm text-slate-400">{lastSegment?.arrival?.iataCode}</p>
-              <p className="text-xs text-slate-500">{formatDate(arrivalTime)}</p>
+              <p className="text-2xl font-bold text-white">{formatTime(arrivalTime, lastSegment?.arrival.timeZone)}</p>
+              <p className="text-sm text-slate-400">{lastSegment?.arrival.iataCode}</p>
+              <p className="text-xs text-slate-500">{formatDate(arrivalTime, lastSegment?.arrival.timeZone)}</p>
             </div>
           </div>
 
           {/* Segments Info */}
           {stops > 0 && (
             <div className="mt-3 text-xs text-slate-500">
-              Stops: {segments.slice(0, -1).map((seg: any) => seg.arrival.iataCode).join(', ')}
+              Stops: {segments.slice(0, -1).map(seg => seg.arrival.iataCode).join(', ')}
             </div>
           )}
         </div>
@@ -383,13 +452,4 @@ function FlightCard({
   );
 }
 
-// Helper function to parse ISO 8601 duration
-function parseDuration(duration: string): number {
-  const match = duration.match(/PT(\d+H)?(\d+M)?/);
-  if (!match) return 0;
-  
-  const hours = match[1] ? parseInt(match[1]) : 0;
-  const minutes = match[2] ? parseInt(match[2]) : 0;
-  
-  return hours * 60 + minutes;
-}
+
