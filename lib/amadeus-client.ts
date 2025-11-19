@@ -75,46 +75,55 @@ interface AmadeusFlightData {
 }
 
 class AmadeusClient {
-  private apiKey: string;
-  private apiSecret: string;
-  private baseUrl = 'https://api.amadeus.com/v2';
   private accessToken: string | null = null;
   private tokenExpiry: number | null = null;
 
-  constructor() {
-    this.apiKey = process.env.AMADEUS_API_KEY || '';
-    this.apiSecret = process.env.AMADEUS_API_SECRET || '';
-    if (!this.apiKey || !this.apiSecret) {
+  private getCredentials() {
+    const apiKey = process.env.AMADEUS_API_KEY || '';
+    const apiSecret = process.env.AMADEUS_API_SECRET || '';
+    const baseUrl = process.env.AMADEUS_API_BASE_URL || 'https://test.api.amadeus.com';
+
+    if (!apiKey || !apiSecret) {
       console.warn('Amadeus API credentials not configured. Using database fallback.');
     }
+
+    return { apiKey, apiSecret, baseUrl };
   }
 
   async authenticate(): Promise<string> {
     try {
-      if (this.accessToken && this.tokenExpiry && this.tokenExpiry > Date.now()) {
+      // Return cached token if still valid (with 5 min buffer)
+      if (this.accessToken && this.tokenExpiry && this.tokenExpiry > Date.now() + 300000) {
         return this.accessToken;
       }
 
+      const { apiKey, apiSecret, baseUrl } = this.getCredentials();
+
       const response = await axios.post(
-        `${this.baseUrl}/auth/oauth2/token`,
-        {
+        `${baseUrl}/v1/security/oauth2/token`,
+        new URLSearchParams({
           grant_type: 'client_credentials',
-          client_id: this.apiKey,
-          client_secret: this.apiSecret,
+          client_id: apiKey,
+          client_secret: apiSecret,
+        }),
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
         }
       );
 
       this.accessToken = response.data.access_token;
-      this.tokenExpiry = Date.now() + response.data.expires_in * 1000;
-      
+      this.tokenExpiry = Date.now() + (response.data.expires_in * 1000);
+
       if (!this.accessToken) {
         throw new Error('Failed to retrieve access token');
       }
-      
+
       return this.accessToken;
-    } catch (error) {
-      console.error('Amadeus authentication failed:', error);
-      throw new Error('Failed to authenticate with Amadeus API');
+    } catch (error: any) {
+      console.error('Amadeus authentication failed:', error.response?.data || error.message);
+      throw new Error('Failed to authenticate with Amadeus API: ' + (error.response?.data?.error_description || error.message));
     }
   }
 
@@ -129,6 +138,7 @@ class AmadeusClient {
   ): Promise<AmadeusFlightData[]> {
     try {
       const token = await this.authenticate();
+      const { baseUrl } = this.getCredentials();
 
       const params: any = {
         originLocationCode: departureCode,
@@ -144,7 +154,7 @@ class AmadeusClient {
       if (returnDate) params.returnDate = returnDate;
 
       const response = await axios.get(
-        `${this.baseUrl}/shopping/flight-offers`,
+        `${baseUrl}/v2/shopping/flight-offers`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -167,6 +177,7 @@ class AmadeusClient {
   ): Promise<any[]> {
     try {
       const token = await this.authenticate();
+      const { baseUrl } = this.getCredentials();
 
       const params: any = {
         origin: departureCode,
@@ -174,7 +185,7 @@ class AmadeusClient {
       };
 
       const response = await axios.get(
-        `${this.baseUrl}/shopping/flight-inspiration`,
+        `${baseUrl}/v1/shopping/flight-destinations`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -196,9 +207,10 @@ class AmadeusClient {
   ): Promise<any[]> {
     try {
       const token = await this.authenticate();
+      const { baseUrl } = this.getCredentials();
 
       const response = await axios.get(
-        `${this.baseUrl}/reference-data/locations`,
+        `${baseUrl}/v1/reference-data/locations`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -224,9 +236,10 @@ class AmadeusClient {
   ): Promise<any> {
     try {
       const token = await this.authenticate();
+      const { baseUrl } = this.getCredentials();
 
       const response = await axios.get(
-        `${this.baseUrl}/reference-data/airlines`,
+        `${baseUrl}/v1/reference-data/airlines`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
