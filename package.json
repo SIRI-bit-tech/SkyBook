@@ -10,6 +10,7 @@
     "seed": "tsx scripts/seed-database.ts",
     "seed:prod": "cross-env NODE_ENV=production tsx scripts/seed-database.ts",
     "test:db": "tsx scripts/test-db-connection.ts",
+    "test:amadeus": "tsx scripts/test-amadeus.ts",
     "generate:secret": "node scripts/generate-secret.js"
   },
   "dependencies": {

@@ -1,55 +1,108 @@
-import { connectToDatabase } from "@/lib/mongodb";
-import { FlightModel } from "@/models/Flight";
-import { AirlineModel } from "@/models/Airline";
-import { AirportModel } from "@/models/Airport";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
+import { amadeusClient } from '@/lib/amadeus-client';
+import { formatFlightSearchResult } from '@/lib/flight-utils';
 
-export async function POST(request: NextRequest) {
+/**
+ * Flight Search API
+ * 
+ * GET /api/flights/search
+ * 
+ * Query Parameters:
+ * - origin: IATA code (required)
+ * - destination: IATA code (required)
+ * - departureDate: YYYY-MM-DD (required)
+ * - returnDate: YYYY-MM-DD (optional)
+ * - adults: number (default: 1)
+ * - children: number (default: 0)
+ * - infants: number (default: 0)
+ */
+export async function GET(request: NextRequest) {
   try {
-    await connectToDatabase();
-
-    const { departureCity, arrivalCity, departureDate, passengers, cabinClass, airlines } = await request.json();
-
-    const departureAirport = await AirportModel.findOne({
-      $or: [{ code: departureCity.toUpperCase() }, { city: departureCity }],
-    });
-
-    const arrivalAirport = await AirportModel.findOne({
-      $or: [{ code: arrivalCity.toUpperCase() }, { city: arrivalCity }],
-    });
-
-    if (!departureAirport || !arrivalAirport) {
-      return NextResponse.json({ error: "Airport not found" }, { status: 404 });
+    const searchParams = request.nextUrl.searchParams;
+    
+    // Validate required parameters
+    const origin = searchParams.get('origin');
+    const destination = searchParams.get('destination');
+    const departureDate = searchParams.get('departureDate');
+    
+    if (!origin || !destination || !departureDate) {
+      return NextResponse.json(
+        { error: 'Missing required parameters: origin, destination, departureDate' },
+        { status: 400 }
+      );
     }
 
-    const startDate = new Date(departureDate);
-    const endDate = new Date(departureDate);
-    endDate.setDate(endDate.getDate() + 1);
-
-    let query: any = {
-      "departure.airport": departureAirport._id,
-      "arrival.airport": arrivalAirport._id,
-      "departure.time": { $gte: startDate, $lt: endDate },
-      status: "scheduled",
-    };
-
-    if (airlines && airlines.length > 0) {
-      query.airline = { $in: airlines };
+    // Validate date format
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(departureDate)) {
+      return NextResponse.json(
+        { error: 'Invalid date format. Use YYYY-MM-DD' },
+        { status: 400 }
+      );
     }
 
-    const flights = await FlightModel.find(query)
-      .populate("airline")
-      .populate("departure.airport")
-      .populate("arrival.airport")
-      .sort({ "departure.time": 1 });
+    // Optional parameters
+    const returnDate = searchParams.get('returnDate');
+    const adults = parseInt(searchParams.get('adults') || '1');
+    const children = parseInt(searchParams.get('children') || '0');
+    const infants = parseInt(searchParams.get('infants') || '0');
+
+    // Validate passenger counts
+    if (adults < 1 || adults > 9) {
+      return NextResponse.json(
+        { error: 'Adults must be between 1 and 9' },
+        { status: 400 }
+      );
+    }
+
+    // Search flights via Amadeus
+    const flights = await amadeusClient.searchFlights(
+      origin,
+      destination,
+      departureDate,
+      adults,
+      children,
+      infants,
+      returnDate || undefined
+    );
+
+    // Transform results
+    const formattedFlights = flights.map(formatFlightSearchResult);
 
     return NextResponse.json({
       success: true,
-      flights,
-      count: flights.length,
+      count: formattedFlights.length,
+      data: formattedFlights,
+      searchParams: {
+        origin,
+        destination,
+        departureDate,
+        returnDate,
+        passengers: { adults, children, infants },
+      },
     });
-  } catch (error) {
-    console.error("[Flight Search Error]", error);
-    return NextResponse.json({ error: "Failed to search flights" }, { status: 500 });
+
+  } catch (error: any) {
+    console.error('Flight search error:', error);
+    
+    // Handle specific Amadeus errors
+    if (error.response?.status === 401) {
+      return NextResponse.json(
+        { error: 'Authentication failed with flight data provider' },
+        { status: 500 }
+      );
+    }
+    
+    if (error.response?.status === 400) {
+      return NextResponse.json(
+        { error: 'Invalid search parameters', details: error.response.data },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: 'Failed to search flights', message: error.message },
+      { status: 500 }
+    );
   }
 }
