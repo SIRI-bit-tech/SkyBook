@@ -1,6 +1,20 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+/**
+ * Middleware for route protection and authentication
+ * 
+ * Security Layers:
+ * 1. Middleware (this file) - Fast cookie-based checks for authentication and role
+ * 2. Server Components (admin/layout.tsx) - Server-side session validation
+ * 3. API Routes - Individual endpoint protection
+ * 
+ * Admin Role Enforcement:
+ * - Middleware checks 'user-role' cookie (set during sign-in in lib/auth.ts)
+ * - Admin layout performs server-side session validation (lib/auth-server.ts)
+ * - Double-layer protection ensures security even if cookies are tampered with
+ */
+
 // Routes that require authentication
 const protectedRoutes = [
   '/bookings',
@@ -12,7 +26,7 @@ const protectedRoutes = [
   '/confirmation',
 ];
 
-// Admin-only routes
+// Admin-only routes (requires authentication + admin role)
 const adminRoutes = [
   '/admin',
 ];
@@ -54,12 +68,22 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // For admin routes, we'll check role on the server side
-  // This middleware just ensures they're authenticated
-  if (isAdminRoute && !isAuthenticated) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
+  // Admin route protection (two-layer security)
+  if (isAdminRoute) {
+    // Layer 1: Check authentication
+    if (!isAuthenticated) {
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // Layer 2: Check admin role from cookie (set during sign-in)
+    const userRole = request.cookies.get('user-role')?.value;
+    if (userRole !== 'admin') {
+      // Non-admin users are redirected to home
+      // Note: Admin layout also performs server-side validation for additional security
+      return NextResponse.redirect(new URL('/', request.url));
+    }
   }
 
   return NextResponse.next();

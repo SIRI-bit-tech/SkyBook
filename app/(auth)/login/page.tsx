@@ -23,6 +23,10 @@ export default function LoginPage() {
         email: credentials.email,
         password: credentials.password,
       });
+      
+      // Set role cookie for middleware
+      await fetch('/api/auth/set-role', { method: 'POST' });
+      
       router.push('/bookings');
       router.refresh();
     } catch (err: any) {

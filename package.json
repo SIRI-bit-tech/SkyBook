@@ -9,7 +9,8 @@
     "start": "next start",
     "seed": "tsx scripts/seed-database.ts",
     "seed:prod": "cross-env NODE_ENV=production tsx scripts/seed-database.ts",
-    "test:db": "tsx scripts/test-db-connection.ts"
+    "test:db": "tsx scripts/test-db-connection.ts",
+    "generate:secret": "node scripts/generate-secret.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
