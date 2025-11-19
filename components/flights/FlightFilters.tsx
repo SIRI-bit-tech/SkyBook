@@ -6,17 +6,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { getAirlineLogo, getAirlineName } from '@/lib/airline-logos';
+import { Flight, Filters } from './FlightResults';
 import Image from 'next/image';
 
 interface FlightFiltersProps {
-  flights: any[];
-  filters: {
-    airlines: string[];
-    priceRange: [number, number];
-    stops: number[];
-    departureTime: string[];
-  };
-  onFiltersChange: (filters: any) => void;
+  flights: Flight[];
+  filters: Filters;
+  onFiltersChange: (filters: Filters) => void;
 }
 
 export default function FlightFilters({ flights, filters, onFiltersChange }: FlightFiltersProps) {
@@ -27,7 +23,7 @@ export default function FlightFilters({ flights, filters, onFiltersChange }: Fli
     const airlineSet = new Set<string>();
     flights.forEach(flight => {
       const codes = flight.validatingAirlineCodes || [];
-      codes.forEach((code: string) => airlineSet.add(code));
+      codes.forEach(code => airlineSet.add(code));
     });
     return Array.from(airlineSet).sort();
   }, [flights]);
@@ -36,7 +32,7 @@ export default function FlightFilters({ flights, filters, onFiltersChange }: Fli
   const { minPrice, maxPrice } = useMemo(() => {
     if (flights.length === 0) return { minPrice: 0, maxPrice: 10000 };
     
-    const prices = flights.map(f => parseFloat(f.price?.total || '0'));
+    const prices = flights.map(f => parseFloat(f.price.total));
     return {
       minPrice: Math.floor(Math.min(...prices)),
       maxPrice: Math.ceil(Math.max(...prices))

@@ -4,6 +4,7 @@
  */
 
 import { Flight } from '@/types/global';
+import { getAirlineName } from '@/lib/airline-logos';
 
 /**
  * Parse ISO 8601 duration to minutes
@@ -45,14 +46,15 @@ export function formatDuration(duration: string | number): string {
  * Format time from ISO string
  * Example: "2024-01-15T14:30:00" -> "2:30 PM"
  */
-export function formatTime(isoString: string): string {
+export function formatTime(isoString: string, timeZone?: string): string {
   if (!isoString) return '';
   
   const date = new Date(isoString);
   return date.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
-    hour12: true
+    hour12: true,
+    ...(timeZone && { timeZone })
   });
 }
 
@@ -60,13 +62,14 @@ export function formatTime(isoString: string): string {
  * Format date from ISO string
  * Example: "2024-01-15T14:30:00" -> "Jan 15"
  */
-export function formatDate(isoString: string): string {
+export function formatDate(isoString: string, timeZone?: string): string {
   if (!isoString) return '';
   
   const date = new Date(isoString);
   return date.toLocaleDateString('en-US', {
     month: 'short',
-    day: 'numeric'
+    day: 'numeric',
+    ...(timeZone && { timeZone })
   });
 }
 
@@ -89,26 +92,7 @@ export function calculateStops(segments: any[]): number {
   return Math.max(0, segments.length - 1);
 }
 
-/**
- * Get airline name from code
- * This is a basic mapping - in production, fetch from database or API
- */
-export function getAirlineName(code: string): string {
-  const airlines: Record<string, string> = {
-    'AA': 'American Airlines',
-    'DL': 'Delta Air Lines',
-    'UA': 'United Airlines',
-    'BA': 'British Airways',
-    'EK': 'Emirates',
-    'QR': 'Qatar Airways',
-    'SQ': 'Singapore Airlines',
-    'LH': 'Lufthansa',
-    'AF': 'Air France',
-    'KL': 'KLM',
-  };
 
-  return airlines[code] || code;
-}
 
 /**
  * Transform Amadeus flight offer to our Flight model

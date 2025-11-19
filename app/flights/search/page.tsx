@@ -3,21 +3,21 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import FlightResults from '@/components/flights/FlightResults';
+import FlightResults, { Flight, Filters } from '@/components/flights/FlightResults';
 import FlightFilters from '@/components/flights/FlightFilters';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
 
 export default function FlightSearchPage() {
   const searchParams = useSearchParams();
-  const [flights, setFlights] = useState([]);
+  const [flights, setFlights] = useState<Flight[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState({
-    airlines: [] as string[],
-    priceRange: [0, 10000] as [number, number],
-    stops: [] as number[],
-    departureTime: [] as string[],
+  const [filters, setFilters] = useState<Filters>({
+    airlines: [],
+    priceRange: [0, 10000],
+    stops: [],
+    departureTime: [],
   });
 
   const departure = searchParams.get('departure');
