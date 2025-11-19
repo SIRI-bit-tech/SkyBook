@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { loginUser } from '@/actions/auth-actions';
+import { signIn } from '@/lib/auth-client';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,12 +18,17 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
 
-    const result = await loginUser(credentials.email, credentials.password);
-    if (result.error) {
-      setError(result.error);
-    } else {
-      router.push('/');
+    try {
+      await signIn.email({
+        email: credentials.email,
+        password: credentials.password,
+      });
+      router.push('/bookings');
+      router.refresh();
+    } catch (err: any) {
+      setError(err?.message || 'Invalid credentials');
     }
+    
     setLoading(false);
   };
 

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { registerUser } from '@/actions/auth-actions';
+import { signUp } from '@/lib/auth-client';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -29,11 +29,16 @@ export default function RegisterPage() {
     }
 
     setLoading(true);
-    const result = await registerUser(form.email, form.password, form.firstName, form.lastName);
-    if (result.error) {
-      setError(result.error);
-    } else {
-      router.push('/login?registered=true');
+    try {
+      await signUp.email({
+        email: form.email,
+        password: form.password,
+        name: `${form.firstName} ${form.lastName}`,
+      });
+      router.push('/bookings');
+      router.refresh();
+    } catch (err: any) {
+      setError(err?.message || 'Failed to create account');
     }
     setLoading(false);
   };

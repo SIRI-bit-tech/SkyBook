@@ -14,10 +14,10 @@ export async function registerUser(email: string, password: string, firstName: s
       return { error: "User already exists" };
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Password will be hashed by the User model's pre-save hook
     const user = await UserModel.create({
       email,
-      password: hashedPassword,
+      password,
       firstName,
       lastName,
       role: "user",
