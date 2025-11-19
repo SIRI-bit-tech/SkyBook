@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { Airport } from '@/types/global';
 
-interface IAirport extends Document, Airport {}
+interface IAirport extends Omit<Airport, '_id'>, Document {}
 
 const airportSchema = new Schema<IAirport>(
   {

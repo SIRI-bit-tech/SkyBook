@@ -1,7 +1,9 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
 import { Payment } from '@/types/global';
 
-interface IPayment extends Document, Payment {}
+interface IPayment extends Omit<Payment, '_id' | 'booking'>, Document {
+  booking: Types.ObjectId;
+}
 
 const paymentSchema = new Schema<IPayment>(
   {
