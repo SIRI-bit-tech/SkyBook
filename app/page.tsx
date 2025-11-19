@@ -9,6 +9,7 @@ import FlightSearchBar from '@/components/booking/FlightSearchBar';
 import PopularAirlines from '@/components/booking/PopularAirlines';
 import ImageCarousel from '@/components/hero/ImageCarousel';
 import Footer from '@/components/layout/Footer';
+import { UserNav } from '@/components/shared/UserNav';
 
 export default function HomePage() {
   return (
@@ -16,24 +17,18 @@ export default function HomePage() {
       {/* Header */}
       <header className="border-b border-slate-700 bg-slate-900/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
             <div className="w-10 h-10 bg-sky-500 rounded-full flex items-center justify-center">
               <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2L4 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-8-5z" />
               </svg>
             </div>
             <h1 className="text-2xl font-bold text-white">SkyBook</h1>
-          </div>
-          <nav className="flex items-center gap-4">
-            <Link href="/bookings" className="text-slate-300 hover:text-white transition">My Bookings</Link>
+          </Link>
+          <nav className="flex items-center gap-6">
             <Link href="/about" className="text-slate-300 hover:text-white transition">About</Link>
             <Link href="/contact" className="text-slate-300 hover:text-white transition">Contact</Link>
-            <Link href="/login">
-              <Button variant="outline" className="text-white border-slate-500 hover:bg-slate-700">Sign In</Button>
-            </Link>
-            <Link href="/register">
-              <Button className="bg-sky-500 hover:bg-sky-600 text-white">Sign Up</Button>
-            </Link>
+            <UserNav />
           </nav>
         </div>
       </header>
