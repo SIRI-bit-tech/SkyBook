@@ -8,26 +8,24 @@ import { formatFlightSearchResult } from '@/lib/flight-utils';
  * GET /api/flights/search
  * 
  * Query Parameters:
- * - origin: IATA code (required)
- * - destination: IATA code (required)
+ * - departure: IATA code (required)
+ * - arrival: IATA code (required)
  * - departureDate: YYYY-MM-DD (required)
  * - returnDate: YYYY-MM-DD (optional)
- * - adults: number (default: 1)
- * - children: number (default: 0)
- * - infants: number (default: 0)
+ * - passengers: number (default: 1)
  */
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     
-    // Validate required parameters
-    const origin = searchParams.get('origin');
-    const destination = searchParams.get('destination');
+    // Validate required parameters - support both old and new parameter names
+    const departure = searchParams.get('departure') || searchParams.get('origin');
+    const arrival = searchParams.get('arrival') || searchParams.get('destination');
     const departureDate = searchParams.get('departureDate');
     
-    if (!origin || !destination || !departureDate) {
+    if (!departure || !arrival || !departureDate) {
       return NextResponse.json(
-        { error: 'Missing required parameters: origin, destination, departureDate' },
+        { error: 'Missing required parameters: departure, arrival, departureDate' },
         { status: 400 }
       );
     }
@@ -43,22 +41,23 @@ export async function GET(request: NextRequest) {
 
     // Optional parameters
     const returnDate = searchParams.get('returnDate');
-    const adults = parseInt(searchParams.get('adults') || '1');
+    const passengers = parseInt(searchParams.get('passengers') || '1');
+    const adults = parseInt(searchParams.get('adults') || passengers.toString());
     const children = parseInt(searchParams.get('children') || '0');
     const infants = parseInt(searchParams.get('infants') || '0');
 
     // Validate passenger counts
     if (adults < 1 || adults > 9) {
       return NextResponse.json(
-        { error: 'Adults must be between 1 and 9' },
+        { error: 'Passengers must be between 1 and 9' },
         { status: 400 }
       );
     }
 
     // Search flights via Amadeus
     const flights = await amadeusClient.searchFlights(
-      origin,
-      destination,
+      departure,
+      arrival,
       departureDate,
       adults,
       children,
@@ -66,19 +65,17 @@ export async function GET(request: NextRequest) {
       returnDate || undefined
     );
 
-    // Transform results
-    const formattedFlights = flights.map(formatFlightSearchResult);
-
+    // Return raw flights for now (we'll format on the client side)
     return NextResponse.json({
       success: true,
-      count: formattedFlights.length,
-      data: formattedFlights,
+      count: flights.length,
+      flights: flights,
       searchParams: {
-        origin,
-        destination,
+        departure,
+        arrival,
         departureDate,
         returnDate,
-        passengers: { adults, children, infants },
+        passengers: adults + children + infants,
       },
     });
 

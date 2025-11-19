@@ -23,13 +23,51 @@ export function parseDuration(duration: string): number {
  * Format minutes to readable duration
  * Example: 150 -> "2h 30m"
  */
-export function formatDuration(minutes: number): string {
+export function formatDuration(duration: string | number): string {
+  let minutes: number;
+  
+  if (typeof duration === 'string') {
+    // Parse ISO 8601 duration format (e.g., "PT2H30M")
+    minutes = parseDuration(duration);
+  } else {
+    minutes = duration;
+  }
+
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
 
   if (hours === 0) return `${mins}m`;
   if (mins === 0) return `${hours}h`;
   return `${hours}h ${mins}m`;
+}
+
+/**
+ * Format time from ISO string
+ * Example: "2024-01-15T14:30:00" -> "2:30 PM"
+ */
+export function formatTime(isoString: string): string {
+  if (!isoString) return '';
+  
+  const date = new Date(isoString);
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
+/**
+ * Format date from ISO string
+ * Example: "2024-01-15T14:30:00" -> "Jan 15"
+ */
+export function formatDate(isoString: string): string {
+  if (!isoString) return '';
+  
+  const date = new Date(isoString);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric'
+  });
 }
 
 /**
