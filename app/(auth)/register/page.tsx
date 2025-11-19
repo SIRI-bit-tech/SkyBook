@@ -35,6 +35,10 @@ export default function RegisterPage() {
         password: form.password,
         name: `${form.firstName} ${form.lastName}`,
       });
+      
+      // Set role cookie for middleware
+      await fetch('/api/auth/set-role', { method: 'POST' });
+      
       router.push('/bookings');
       router.refresh();
     } catch (err: any) {

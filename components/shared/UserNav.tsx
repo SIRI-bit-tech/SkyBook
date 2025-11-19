@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useUser, useIsAuthenticated, signOut } from '@/lib/auth-client';
+import { useUser, useIsAuthenticated, useIsAdmin, signOut } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -18,6 +18,7 @@ export function UserNav() {
   const router = useRouter();
   const user = useUser();
   const isAuthenticated = useIsAuthenticated();
+  const isAdmin = useIsAdmin();
 
   const handleSignOut = async () => {
     await signOut();
@@ -79,7 +80,7 @@ export function UserNav() {
             <span>Profile</span>
           </Link>
         </DropdownMenuItem>
-        {user.role === 'admin' && (
+        {isAdmin && (
           <DropdownMenuItem asChild>
             <Link href="/admin/dashboard" className="cursor-pointer">
               <Settings className="mr-2 h-4 w-4" />
