@@ -6,11 +6,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { getAirlineLogo, getAirlineName } from '@/lib/airline-logos';
-import { Flight, Filters } from './FlightResults';
+import { FlightResult, Filters } from '@/types/global';
 import Image from 'next/image';
 
 interface FlightFiltersProps {
-  flights: Flight[];
+  flights: FlightResult[];
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
 }
@@ -107,7 +107,7 @@ export default function FlightFilters({ flights, filters, onFiltersChange }: Fli
                     width={32}
                     height={32}
                     className="object-contain"
-                    onError={(e) => {
+                    onError={(e: React.SyntheticEvent<HTMLImageElement, Event>) => {
                       const target = e.target as HTMLImageElement;
                       target.style.display = 'none';
                       if (target.parentElement) {

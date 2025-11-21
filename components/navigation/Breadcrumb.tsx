@@ -2,11 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-
-interface BreadcrumbItem {
-  label: string;
-  href: string;
-}
+import { BreadcrumbItem } from '@/types/global';
 
 function generateBreadcrumbs(pathname: string): BreadcrumbItem[] {
   const paths = pathname.split('/').filter(Boolean);

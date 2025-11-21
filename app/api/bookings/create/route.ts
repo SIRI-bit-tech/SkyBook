@@ -1,65 +1,106 @@
-import { connectToDatabase } from "@/lib/mongodb";
-import { BookingModel } from "@/models/Booking";
-import { FlightModel } from "@/models/Flight";
-import { PaymentModel } from "@/models/Payment";
-import { PassengerModel } from "@/models/Passenger";
-import { generateBookingReference } from "@/config/constants";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
+import { connectToDatabase } from '@/lib/mongodb';
+import { Booking } from '@/models/Booking';
+import { FlightModel } from '@/models/Flight';
+import { getSession } from '@/lib/auth-server';
 
 export async function POST(request: NextRequest) {
   try {
     await connectToDatabase();
-
-    const { userId, flightId, passengers, seats, totalPrice, paymentId } = await request.json();
-
-    // Verify flight exists
-    const flight = await FlightModel.findById(flightId);
-    if (!flight) {
-      return NextResponse.json({ error: "Flight not found" }, { status: 404 });
+    
+    // Get user session
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check seat availability
-    const unavailableSeats = seats.filter((seat: string) =>
-      flight.seatMap.reserved.includes(seat)
-    );
+    const body = await request.json();
+    const {
+      flightId,
+      passengers,
+      seats,
+      addOns,
+      totalPrice,
+      paymentDetails,
+    } = body;
 
-    if (unavailableSeats.length > 0) {
+    // Validate required fields
+    if (!flightId || !passengers || !seats || !totalPrice) {
       return NextResponse.json(
-        { error: `Seats ${unavailableSeats.join(", ")} are not available` },
+        { error: 'Missing required fields' },
         { status: 400 }
       );
     }
 
-    // Create passengers
-    const passengerIds = await Promise.all(
-      passengers.map((p: any) => PassengerModel.create(p).then((doc) => doc._id))
+    // Verify flight exists and seats are available
+    const flight = await FlightModel.findById(flightId);
+    if (!flight) {
+      return NextResponse.json({ error: 'Flight not found' }, { status: 404 });
+    }
+
+    // Check if seats are still available
+    const unavailableSeats = seats.filter((seat: string) => 
+      flight.seatMap.reserved.includes(seat)
     );
+    
+    if (unavailableSeats.length > 0) {
+      return NextResponse.json(
+        { error: `Seats ${unavailableSeats.join(', ')} are no longer available` },
+        { status: 409 }
+      );
+    }
+
+    // Generate booking reference
+    const bookingReference = `SB${Date.now().toString().slice(-6)}${Math.random().toString(36).substr(2, 3).toUpperCase()}`;
 
     // Create booking
-    const bookingReference = generateBookingReference();
-    const booking = await BookingModel.create({
+    const booking = new Booking({
       bookingReference,
-      user: userId,
+      user: session.user.id,
       flight: flightId,
-      passengers: passengerIds,
+      passengers: passengers.map((p: any) => ({
+        firstName: p.firstName,
+        lastName: p.lastName,
+        dateOfBirth: new Date(p.dateOfBirth),
+        passportNumber: p.passportNumber,
+        nationality: p.nationality,
+        email: p.email,
+        phone: p.phone,
+      })),
       seats,
+      addOns: addOns || {},
       totalPrice,
-      paymentId,
-      status: "confirmed",
+      paymentId: `payment_${Date.now()}`, // In real app, this would come from Stripe
+      status: 'confirmed',
+      qrCode: `qr_${bookingReference}`,
+      ticketUrl: `/booking/ticket/${bookingReference}`,
     });
 
-    // Update flight seat map
-    flight.seatMap.reserved.push(...seats);
-    flight.availableSeats -= seats.length;
-    await flight.save();
+    await booking.save();
+
+    // Update flight seat availability
+    await FlightModel.findByIdAndUpdate(flightId, {
+      $push: { 'seatMap.reserved': { $each: seats } },
+      $inc: { availableSeats: -seats.length },
+    });
+
+    // Populate booking with flight and user data for response
+    const populatedBooking = await Booking.findById(booking._id)
+      .populate('flight')
+      .populate('user', 'firstName lastName email');
 
     return NextResponse.json({
       success: true,
-      booking,
+      booking: populatedBooking,
       bookingReference,
+      message: 'Booking created successfully',
     });
+
   } catch (error) {
-    console.error("[Create Booking Error]", error);
-    return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });
+    console.error('Booking creation error:', error);
+    return NextResponse.json(
+      { error: 'Failed to create booking' },
+      { status: 500 }
+    );
   }
 }

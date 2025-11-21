@@ -1,6 +1,7 @@
-import { connectToDatabase } from "@/lib/mongodb";
-import { BookingModel } from "@/models/Booking";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
+import { connectToDatabase } from '@/lib/mongodb';
+import { Booking } from '@/models/Booking';
+import { getSession } from '@/lib/auth-server';
 
 export async function GET(
   request: NextRequest,
@@ -8,19 +9,97 @@ export async function GET(
 ) {
   try {
     await connectToDatabase();
-
-    const booking = await BookingModel.findById(params.id)
-      .populate("flight")
-      .populate("passengers")
-      .populate("user");
-
-    if (!booking) {
-      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    
+    // Get user session
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    return NextResponse.json({ success: true, booking });
+    const bookingId = params.id;
+
+    // Find booking and populate related data
+    const booking = await Booking.findById(bookingId)
+      .populate('flight')
+      .populate('user', 'firstName lastName email');
+
+    if (!booking) {
+      return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+    }
+
+    // Check if user owns this booking or is admin
+    if (booking.user._id.toString() !== session.user.id && session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      booking,
+    });
+
   } catch (error) {
-    console.error("[Get Booking Error]", error);
-    return NextResponse.json({ error: "Failed to fetch booking" }, { status: 500 });
+    console.error('Booking fetch error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch booking' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    await connectToDatabase();
+    
+    // Get user session
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const bookingId = params.id;
+    const body = await request.json();
+
+    // Find booking
+    const booking = await Booking.findById(bookingId);
+    if (!booking) {
+      return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+    }
+
+    // Check if user owns this booking or is admin
+    if (booking.user.toString() !== session.user.id && session.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+
+    // Update allowed fields
+    const allowedUpdates = ['status', 'checkedInAt'];
+    const updates: any = {};
+    
+    for (const field of allowedUpdates) {
+      if (body[field] !== undefined) {
+        updates[field] = body[field];
+      }
+    }
+
+    const updatedBooking = await Booking.findByIdAndUpdate(
+      bookingId,
+      updates,
+      { new: true }
+    ).populate('flight').populate('user', 'firstName lastName email');
+
+    return NextResponse.json({
+      success: true,
+      booking: updatedBooking,
+      message: 'Booking updated successfully',
+    });
+
+  } catch (error) {
+    console.error('Booking update error:', error);
+    return NextResponse.json(
+      { error: 'Failed to update booking' },
+      { status: 500 }
+    );
   }
 }

@@ -4,26 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { API_ROUTES } from '@/config/constants';
-
-interface FlightStatus {
-  flightNumber: string;
-  airline: string;
-  departureAirport: string;
-  arrivalAirport: string;
-  departureTime: string;
-  arrivalTime: string;
-  status: 'scheduled' | 'departed' | 'in_air' | 'landed' | 'delayed' | 'cancelled';
-  delayMinutes?: number;
-  currentAltitude?: number;
-  currentSpeed?: number;
-  position?: {
-    latitude: number;
-    longitude: number;
-  };
-  aircraft?: string;
-  gate?: string;
-  lastUpdate: string;
-}
+import { FlightStatus } from '@/types/global';
 
 export default function FlightTracker() {
   const [flightNumber, setFlightNumber] = useState('');
