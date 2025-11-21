@@ -2,26 +2,34 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { DataTable } from '@/components/admin/DataTable';
+import { SearchFilter } from '@/components/admin/SearchFilter';
+import { StatusBadge } from '@/components/admin/StatusBadge';
+import { StatsCard } from '@/components/admin/StatsCard';
+import { PopulatedBooking, Flight } from '@/types/global';
+import { DollarSign, TrendingUp } from 'lucide-react';
 
-interface Booking {
-  _id: string;
-  bookingReference: string;
-  airline: string;
-  status: string;
-  totalPrice: number;
-  passenger: string;
-  createdAt: string;
-  flight: {
-    flightNumber: string;
-    departure: string;
-    arrival: string;
+interface PopulatedFlight extends Omit<Flight, 'airline' | 'departure' | 'arrival'> {
+  airline: { _id: string; name: string; code: string; logo: string };
+  departure: {
+    airport: { _id: string; name: string; code: string; city: string };
+    time: Date;
+    terminal?: string;
+  };
+  arrival: {
+    airport: { _id: string; name: string; code: string; city: string };
+    time: Date;
+    terminal?: string;
   };
 }
 
+interface ExtendedPopulatedBooking extends Omit<PopulatedBooking, 'flight'> {
+  flight: PopulatedFlight;
+}
+
 export default function BookingsManagementPage() {
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<ExtendedPopulatedBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -36,16 +44,32 @@ export default function BookingsManagementPage() {
     fetchBookings();
   }, []);
 
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      fetchBookings();
+    }, 300);
+    return () => clearTimeout(debounce);
+  }, [searchTerm, statusFilter]);
+
   const fetchBookings = async () => {
     try {
-      const response = await fetch('/api/bookings?limit=100');
+      const params = new URLSearchParams();
+      if (searchTerm) params.append('search', searchTerm);
+      if (statusFilter !== 'all') params.append('status', statusFilter);
+
+      const response = await fetch(`/api/admin/bookings?${params}`);
       if (response.ok) {
         const data = await response.json();
         const bookingsList = data.bookings || [];
         setBookings(bookingsList);
 
-        const totalRevenue = bookingsList.reduce((sum: number, b: Booking) => sum + b.totalPrice, 0);
-        const confirmed = bookingsList.filter((b: Booking) => b.status === 'confirmed').length;
+        const totalRevenue = bookingsList.reduce(
+          (sum: number, b: ExtendedPopulatedBooking) => sum + b.totalPrice,
+          0
+        );
+        const confirmed = bookingsList.filter(
+          (b: ExtendedPopulatedBooking) => b.status === 'confirmed'
+        ).length;
 
         setStats({
           totalBookings: bookingsList.length,
@@ -63,26 +87,85 @@ export default function BookingsManagementPage() {
 
   const handleUpdateStatus = async (bookingId: string, newStatus: string) => {
     try {
-      const response = await fetch(`/api/bookings/${bookingId}/patch`, {
+      const response = await fetch(`/api/admin/bookings/${bookingId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
 
       if (response.ok) {
-        fetchBookings();
+        await fetchBookings();
       }
     } catch (error) {
       console.error('Failed to update booking status:', error);
     }
   };
 
-  const filteredBookings = bookings.filter((booking) => {
-    const matchesSearch = booking.bookingReference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         booking.airline.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || booking.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const columns = [
+    {
+      header: 'Booking Ref',
+      accessor: (booking: ExtendedPopulatedBooking) => (
+        <span className="text-white font-semibold">{booking.bookingReference}</span>
+      ),
+    },
+    {
+      header: 'Flight',
+      accessor: (booking: ExtendedPopulatedBooking) => (
+        <div>
+          <div className="text-white">{booking.flight.flightNumber}</div>
+          <div className="text-slate-400 text-sm">
+            {booking.flight.departure.airport.code} → {booking.flight.arrival.airport.code}
+          </div>
+        </div>
+      ),
+    },
+    {
+      header: 'Passenger',
+      accessor: (booking: ExtendedPopulatedBooking) => (
+        <div>
+          <div className="text-white">
+            {booking.user.firstName} {booking.user.lastName}
+          </div>
+          <div className="text-slate-400 text-sm">{booking.user.email}</div>
+        </div>
+      ),
+    },
+    {
+      header: 'Price',
+      accessor: (booking: ExtendedPopulatedBooking) => (
+        <span className="text-sky-400 font-semibold">${booking.totalPrice}</span>
+      ),
+    },
+    {
+      header: 'Status',
+      accessor: (booking: ExtendedPopulatedBooking) => (
+        <StatusBadge status={booking.status} type="booking" />
+      ),
+    },
+    {
+      header: 'Date',
+      accessor: (booking: ExtendedPopulatedBooking) => (
+        <span className="text-slate-300">
+          {booking.createdAt ? new Date(booking.createdAt).toLocaleDateString() : 'N/A'}
+        </span>
+      ),
+    },
+    {
+      header: 'Actions',
+      accessor: (booking: ExtendedPopulatedBooking) => (
+        <select
+          value={booking.status}
+          onChange={(e) => handleUpdateStatus(booking._id!, e.target.value)}
+          className="bg-slate-700 text-white rounded px-2 py-1 border border-slate-600 text-sm"
+        >
+          <option value="pending">Pending</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="checked-in">Checked In</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      ),
+    },
+  ];
 
   if (loading) {
     return (
@@ -99,108 +182,53 @@ export default function BookingsManagementPage() {
       <div className="max-w-7xl mx-auto">
         <h1 className="text-4xl font-bold text-white mb-8">Bookings & Analytics</h1>
 
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-slate-800 border-slate-700 p-6">
-            <p className="text-sm text-slate-400 mb-2">Total Bookings</p>
-            <p className="text-3xl font-bold text-white">{stats.totalBookings}</p>
-            <p className="text-sky-400 text-sm mt-2">{stats.confirmedBookings} confirmed</p>
-          </Card>
-
-          <Card className="bg-slate-800 border-slate-700 p-6">
-            <p className="text-sm text-slate-400 mb-2">Total Revenue</p>
-            <p className="text-3xl font-bold text-emerald-400">${stats.totalRevenue.toLocaleString()}</p>
-            <p className="text-sky-400 text-sm mt-2">All bookings</p>
-          </Card>
-
-          <Card className="bg-slate-800 border-slate-700 p-6">
-            <p className="text-sm text-slate-400 mb-2">Average Price</p>
-            <p className="text-3xl font-bold text-white">${stats.averagePrice.toFixed(2)}</p>
-            <p className="text-sky-400 text-sm mt-2">Per booking</p>
-          </Card>
-
-          <Card className="bg-slate-800 border-slate-700 p-6">
-            <p className="text-sm text-slate-400 mb-2">Conversion Rate</p>
-            <p className="text-3xl font-bold text-sky-400">
-              {((stats.confirmedBookings / stats.totalBookings) * 100 || 0).toFixed(1)}%
-            </p>
-            <p className="text-sky-400 text-sm mt-2">Of pending bookings</p>
-          </Card>
-        </div>
-
-        {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <input
-            type="text"
-            placeholder="Search by booking reference or airline..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="bg-slate-700 text-white rounded-lg px-4 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none"
+          <StatsCard
+            title="Total Bookings"
+            value={stats.totalBookings}
+            subtitle={`${stats.confirmedBookings} confirmed`}
+            icon={<DollarSign className="w-6 h-6 text-sky-500" />}
+            colorClass="bg-sky-500/20"
           />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-slate-700 text-white rounded-lg px-4 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none"
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="checked-in">Checked In</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+          <StatsCard
+            title="Total Revenue"
+            value={`$${stats.totalRevenue.toLocaleString()}`}
+            subtitle="All bookings"
+            icon={<DollarSign className="w-6 h-6 text-emerald-500" />}
+            colorClass="bg-emerald-500/20"
+          />
+          <StatsCard
+            title="Average Price"
+            value={`$${stats.averagePrice.toFixed(2)}`}
+            subtitle="Per booking"
+            icon={<TrendingUp className="w-6 h-6 text-amber-500" />}
+            colorClass="bg-amber-500/20"
+          />
+          <StatsCard
+            title="Conversion Rate"
+            value={`${((stats.confirmedBookings / stats.totalBookings) * 100 || 0).toFixed(1)}%`}
+            subtitle="Confirmed bookings"
+            icon={<TrendingUp className="w-6 h-6 text-purple-500" />}
+            colorClass="bg-purple-500/20"
+          />
         </div>
 
-        {/* Bookings Table */}
-        <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-slate-700/50 border-b border-slate-700">
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Booking Ref</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Flight</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Airline</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Price</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Status</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Date</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-white">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredBookings.map((booking) => (
-                <tr key={booking._id} className="border-b border-slate-700 hover:bg-slate-700/30 transition">
-                  <td className="px-6 py-4 text-white font-semibold">{booking.bookingReference}</td>
-                  <td className="px-6 py-4 text-slate-300">{booking.flight?.flightNumber}</td>
-                  <td className="px-6 py-4 text-slate-300">{booking.airline}</td>
-                  <td className="px-6 py-4 text-sky-400 font-semibold">${booking.totalPrice}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      booking.status === 'cancelled' ? 'bg-red-500/20 text-red-400' :
-                      booking.status === 'checked-in' ? 'bg-emerald-500/20 text-emerald-400' :
-                      booking.status === 'confirmed' ? 'bg-sky-500/20 text-sky-400' :
-                      'bg-amber-500/20 text-amber-400'
-                    }`}>
-                      {booking.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-slate-300">
-                    {new Date(booking.createdAt).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 flex gap-2">
-                    <select
-                      value={booking.status}
-                      onChange={(e) => handleUpdateStatus(booking._id, e.target.value)}
-                      className="bg-slate-700 text-white rounded px-2 py-1 border border-slate-600 text-sm"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="confirmed">Confirmed</option>
-                      <option value="checked-in">Checked In</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <SearchFilter
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search by booking reference..."
+          filterValue={statusFilter}
+          onFilterChange={setStatusFilter}
+          filterOptions={[
+            { value: 'pending', label: 'Pending' },
+            { value: 'confirmed', label: 'Confirmed' },
+            { value: 'checked-in', label: 'Checked In' },
+            { value: 'cancelled', label: 'Cancelled' },
+          ]}
+          filterPlaceholder="All Status"
+        />
+
+        <DataTable columns={columns} data={bookings} />
 
         <div className="mt-8">
           <Link href="/admin/dashboard">
