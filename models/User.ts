@@ -14,6 +14,11 @@ const userSchema = new Schema<IUser>(
       unique: true,
       lowercase: true,
     },
+    username: {
+      type: String,
+      unique: true,
+      sparse: true, // Allows null values while maintaining uniqueness for non-null values
+    },
     password: String,
     firstName: String,
     lastName: String,
