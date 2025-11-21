@@ -35,7 +35,7 @@ export function UserNav() {
           </Button>
         </Link>
         <Link href="/register">
-          <Button className="bg-sky-500 hover:bg-sky-600 text-white font-medium">
+          <Button className="bg-[#1E3A5F] hover:bg-[#2A4A73] text-white font-medium">
             Sign Up
           </Button>
         </Link>
@@ -54,7 +54,7 @@ export function UserNav() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full bg-sky-600 hover:bg-sky-700">
+        <Button variant="ghost" className="relative h-10 w-10 rounded-full bg-[#1E3A5F] hover:bg-[#2A4A73]">
           <span className="text-white font-medium">{initials}</span>
         </Button>
       </DropdownMenuTrigger>

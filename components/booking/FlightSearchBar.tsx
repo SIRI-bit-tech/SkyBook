@@ -107,8 +107,11 @@ export default function FlightSearchBar() {
         <div className="flex flex-col lg:flex-row gap-3 items-end">
           {/* From */}
           <div className="flex-1 relative">
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">From</label>
+            <label htmlFor="flight-from" className="block text-xs font-medium text-gray-600 mb-1.5">
+              From
+            </label>
             <input
+              id="flight-from"
               ref={departureInputRef}
               type="text"
               placeholder="City or airport"
@@ -136,8 +139,11 @@ export default function FlightSearchBar() {
 
           {/* To */}
           <div className="flex-1 relative">
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">To</label>
+            <label htmlFor="flight-to" className="block text-xs font-medium text-gray-600 mb-1.5">
+              To
+            </label>
             <input
+              id="flight-to"
               ref={arrivalInputRef}
               type="text"
               placeholder="City or airport"
@@ -165,8 +171,11 @@ export default function FlightSearchBar() {
 
           {/* Depart Date */}
           <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">Depart</label>
+            <label htmlFor="flight-depart" className="block text-xs font-medium text-gray-600 mb-1.5">
+              Depart
+            </label>
             <input
+              id="flight-depart"
               type="date"
               value={search.departureDate}
               onChange={(e) => setSearch({ ...search, departureDate: e.target.value })}
@@ -178,8 +187,11 @@ export default function FlightSearchBar() {
           {/* Return Date (if round trip) */}
           {search.tripType === 'round-trip' && (
             <div className="flex-1">
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Return</label>
+              <label htmlFor="flight-return" className="block text-xs font-medium text-gray-600 mb-1.5">
+                Return
+              </label>
               <input
+                id="flight-return"
                 type="date"
                 value={search.returnDate || ''}
                 onChange={(e) => setSearch({ ...search, returnDate: e.target.value })}
@@ -202,8 +214,11 @@ export default function FlightSearchBar() {
         {/* Trip Type and Passengers Row Below */}
         <div className="flex gap-4 mt-4">
           <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">Trip Type</label>
+            <label htmlFor="flight-trip-type" className="block text-xs font-medium text-gray-600 mb-1.5">
+              Trip Type
+            </label>
             <select
+              id="flight-trip-type"
               value={search.tripType}
               onChange={(e) => setSearch({ ...search, tripType: e.target.value as any })}
               className="w-full bg-white text-gray-900 rounded-lg px-4 py-3 border border-gray-300 focus:border-[#1E3A5F] focus:ring-2 focus:ring-[#1E3A5F]/20 focus:outline-none text-sm"
@@ -214,8 +229,11 @@ export default function FlightSearchBar() {
           </div>
 
           <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-600 mb-1.5">Passengers</label>
+            <label htmlFor="flight-passengers" className="block text-xs font-medium text-gray-600 mb-1.5">
+              Passengers
+            </label>
             <select
+              id="flight-passengers"
               value={search.passengers}
               onChange={(e) => setSearch({ ...search, passengers: parseInt(e.target.value) })}
               className="w-full bg-white text-gray-900 rounded-lg px-4 py-3 border border-gray-300 focus:border-[#1E3A5F] focus:ring-2 focus:ring-[#1E3A5F]/20 focus:outline-none text-sm"
