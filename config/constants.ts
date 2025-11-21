@@ -51,16 +51,24 @@ export const CABIN_CLASSES = {
   FIRST_CLASS: 'firstClass',
 } as const;
 
-// Colors - Tailwind Safe Colors for Theming
+// Colors - Tailwind Safe Colors for Theming (Based on Figma Design)
 export const COLORS = {
-  PRIMARY: '#0F172A', // Deep Navy
-  ACCENT: '#0EA5E9', // Sky Blue
+  PRIMARY: '#1E3A5F', // Navy Blue (from mockup header)
+  PRIMARY_DARK: '#152B47', // Darker Navy
+  ACCENT: '#1E3A5F', // Navy Blue for buttons
+  ACCENT_HOVER: '#2A4A73', // Lighter Navy for hover
   SUCCESS: '#10B981', // Emerald
   WARNING: '#F59E0B', // Amber
   ERROR: '#EF4444', // Red
   NEUTRAL: '#64748B', // Slate Gray
-  BG_LIGHT: '#F8FAFC',
-  BG_DARK: '#0F172A',
+  NEUTRAL_LIGHT: '#F3F4F6', // Light Gray for backgrounds
+  BG_LIGHT: '#FFFFFF', // White background
+  BG_SECTION: '#F9FAFB', // Very light gray for sections
+  BG_DARK: '#1E3A5F', // Navy for dark sections
+  TEXT_PRIMARY: '#1F2937', // Dark gray for text
+  TEXT_SECONDARY: '#6B7280', // Medium gray for secondary text
+  TEXT_LIGHT: '#FFFFFF', // White text
+  BORDER: '#E5E7EB', // Light border
   WHITE: '#FFFFFF',
   BLACK: '#000000',
 } as const;

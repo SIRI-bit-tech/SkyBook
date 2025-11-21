@@ -4,24 +4,30 @@
   --font-sans: 'Geist', 'Geist Fallback';
   --font-mono: 'Geist Mono', 'Geist Mono Fallback';
   
-  --color-background: #F8FAFC;
-  --color-foreground: #0F172A;
-  --color-border: #e2e8f0;
+  /* Colors from Figma Design */
+  --color-background: #FFFFFF;
+  --color-foreground: #1F2937;
+  --color-border: #E5E7EB;
   
-  --color-primary: #0F172A;
-  --color-primary-light: #1e293b;
-  --color-accent: #0EA5E9;
-  --color-accent-dark: #0284c7;
+  --color-primary: #1E3A5F;
+  --color-primary-dark: #152B47;
+  --color-primary-light: #2A4A73;
+  --color-accent: #1E3A5F;
+  --color-accent-hover: #2A4A73;
   
   --color-success: #10B981;
   --color-warning: #F59E0B;
   --color-error: #EF4444;
   
   --color-neutral: #64748B;
-  --color-neutral-light: #f1f5f9;
-  --color-neutral-dark: #1e293b;
+  --color-neutral-light: #F3F4F6;
+  --color-neutral-dark: #1F2937;
   
-  --radius: 0.625rem;
+  --color-bg-section: #F9FAFB;
+  --color-text-primary: #1F2937;
+  --color-text-secondary: #6B7280;
+  
+  --radius: 0.5rem;
 }
 
 :root {
@@ -35,9 +41,10 @@
 }
 
 .dark {
-  --color-background: #0F172A;
+  --color-background: #1E3A5F;
   --color-foreground: #FFFFFF;
-  --color-border: #334155;
+  --color-border: #2A4A73;
+  --color-bg-section: #152B47;
 }
 
 @layer base {
