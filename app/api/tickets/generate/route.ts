@@ -1,62 +1,75 @@
-import { connectToDatabase } from '@/lib/mongodb';
-import { BookingModel } from '@/models/Booking';
-import { FlightModel } from '@/models/Flight';
-import { PassengerModel } from '@/models/Passenger';
-import { generateQRCode, encryptBookingData } from '@/lib/qrcode';
-import { sendTicketEmail } from '@/lib/email';
 import { NextRequest, NextResponse } from 'next/server';
+import { connectToDatabase } from '@/lib/mongodb';
+import { Booking } from '@/models/Booking';
+import { getSession } from '@/lib/auth-server';
+import { generateTicketPDF } from '@/lib/pdf-ticket-generator';
+import { generateQRCode } from '@/lib/qr-generator';
+import { sendTicketEmail } from '@/lib/email-service';
 
 export async function POST(request: NextRequest) {
   try {
     await connectToDatabase();
+    
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    const { bookingId } = await request.json();
+    const { bookingId, sendEmail } = await request.json();
 
-    const booking = await BookingModel.findById(bookingId)
+    if (!bookingId) {
+      return NextResponse.json({ error: 'Booking ID is required' }, { status: 400 });
+    }
+
+    // Fetch booking with populated data
+    const booking = await Booking.findById(bookingId)
       .populate('flight')
-      .populate('passengers');
+      .populate('user', 'firstName lastName email');
 
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
-    // Generate QR code with encrypted booking data
-    const firstPassenger = booking.passengers[0];
-    const encryptedData = encryptBookingData(
-      booking.bookingReference,
-      `${firstPassenger.firstName} ${firstPassenger.lastName}`,
-      (booking.flight as any).flightNumber
-    );
+    // Verify ownership
+    if (booking.user._id.toString() !== session.user.id) {
+      return NextResponse.json({ error: 'Unauthorized access to booking' }, { status: 403 });
+    }
 
-    const qrCodeDataUrl = await generateQRCode(encryptedData);
+    // Generate QR code
+    const qrCodeDataUrl = await generateQRCode(booking.bookingReference, booking._id.toString());
 
-    // Generate ticket PDF
-    // For now, just create a placeholder URL - in production use pdf-lib
-    const ticketPdfUrl = `https://skybook.com/tickets/${booking.bookingReference}.pdf`;
+    // Generate PDF ticket
+    const pdfBuffer = await generateTicketPDF(booking);
 
-    // Update booking with ticket URLs
-    booking.qrCode = qrCodeDataUrl;
-    booking.ticketUrl = ticketPdfUrl;
-    await booking.save();
+    // Send email if requested
+    let emailResult = null;
+    if (sendEmail) {
+      emailResult = await sendTicketEmail({
+        booking,
+        pdfBuffer,
+        qrCodeDataUrl,
+      });
+    }
 
-    // Send email with ticket
-    const passengerEmail = firstPassenger.email;
-    await sendTicketEmail(
-      passengerEmail,
-      booking.bookingReference,
-      `${firstPassenger.firstName} ${firstPassenger.lastName}`,
-      ticketPdfUrl,
-      qrCodeDataUrl
-    );
+    // Update booking with QR code and ticket URL
+    await Booking.findByIdAndUpdate(bookingId, {
+      qrCode: qrCodeDataUrl,
+      ticketUrl: `/api/tickets/download/${booking.bookingReference}`,
+    });
 
     return NextResponse.json({
       success: true,
-      booking,
       qrCode: qrCodeDataUrl,
-      ticketUrl: ticketPdfUrl,
+      ticketUrl: `/api/tickets/download/${booking.bookingReference}`,
+      emailSent: emailResult?.success || false,
+      message: 'Ticket generated successfully',
     });
+
   } catch (error) {
-    console.error('[Generate Ticket Error]', error);
-    return NextResponse.json({ error: 'Failed to generate ticket' }, { status: 500 });
+    console.error('Ticket generation error:', error);
+    return NextResponse.json(
+      { error: 'Failed to generate ticket' },
+      { status: 500 }
+    );
   }
 }

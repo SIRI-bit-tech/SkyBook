@@ -14,8 +14,8 @@ export default function BookingConfirmation({ booking }: BookingConfirmationProp
   const arrivalTime = new Date(booking.flight.arrival.time);
 
   const handleDownloadTicket = () => {
-    // In a real app, this would generate and download a PDF ticket
-    window.open(booking.ticketUrl, '_blank');
+    // Download the PDF ticket
+    window.open(`/api/tickets/download/${booking.bookingReference}`, '_blank');
   };
 
   const handleAddToCalendar = () => {
@@ -101,7 +101,9 @@ export default function BookingConfirmation({ booking }: BookingConfirmationProp
             <div className="space-y-6">
               <div>
                 <p className="text-sm text-slate-400 mb-2">Airline</p>
-                <p className="text-white font-semibold">{booking.flight.airline?.name || 'Airline'}</p>
+                <p className="text-white font-semibold">
+                  {typeof booking.flight.airline === 'string' ? booking.flight.airline : (booking.flight.airline as any)?.name || 'Airline'}
+                </p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
