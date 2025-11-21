@@ -53,6 +53,15 @@ export function validateSeatSelection(
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
   
+  // Check for duplicate seat selections
+  const uniqueSeats = new Set(selectedSeats);
+  if (selectedSeats.length !== uniqueSeats.size) {
+    const duplicates = selectedSeats.filter((seat, index) => 
+      selectedSeats.indexOf(seat) !== index
+    );
+    errors.push(`Duplicate seat selections detected: ${[...new Set(duplicates)].join(', ')}`);
+  }
+  
   // Check if correct number of seats selected
   if (selectedSeats.length !== passengerCount) {
     errors.push(`Please select exactly ${passengerCount} seat${passengerCount !== 1 ? 's' : ''}`);

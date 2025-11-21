@@ -34,7 +34,7 @@ export default function PassengerForm({
         <div className="bg-slate-700 rounded-full h-2">
           <div
             className="bg-sky-500 h-full rounded-full transition-all"
-            style={{ width: `${((passengerIndex + 1) / totalPassengers) * 100}%` }}
+            style={{ width: `${((passengerIndex + 1) / Math.max(1, totalPassengers)) * 100}%` }}
           />
         </div>
       </div>

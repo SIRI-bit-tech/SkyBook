@@ -2,14 +2,11 @@
 
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Booking } from '@/types/global';
+import { PopulatedBooking } from '@/types/global';
 import Link from 'next/link';
 
 interface BookingConfirmationProps {
-  booking: Booking & {
-    flight: any;
-    user: any;
-  };
+  booking: PopulatedBooking;
 }
 
 export default function BookingConfirmation({ booking }: BookingConfirmationProps) {
@@ -25,7 +22,7 @@ export default function BookingConfirmation({ booking }: BookingConfirmationProp
     const startDate = departureTime.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
     const endDate = arrivalTime.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
     
-    const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=Flight ${booking.flight.flightNumber}&dates=${startDate}/${endDate}&details=Booking Reference: ${booking.bookingReference}%0ASeats: ${booking.seats.join(', ')}`;
+    const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=Flight ${booking.flight.flightNumber}&dates=${startDate}/${endDate}&details=Booking Reference: ${encodeURIComponent(booking.bookingReference)}%0ASeats: ${booking.seats.join(', ')}`;
     
     window.open(calendarUrl, '_blank');
   };

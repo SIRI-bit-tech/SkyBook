@@ -74,8 +74,9 @@ export interface Booking {
   bookingReference: string;
   user: string;
   flight: string;
-  passengers: string[];
+  passengers: Passenger[];
   seats: string[];
+  addOns: BookingAddOns;
   totalPrice: number;
   paymentId: string;
   status: 'pending' | 'confirmed' | 'checked-in' | 'cancelled';
@@ -84,6 +85,12 @@ export interface Booking {
   checkedInAt?: Date;
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+// Populated Booking type for when references are populated
+export interface PopulatedBooking extends Omit<Booking, 'user' | 'flight'> {
+  user: User;
+  flight: Flight;
 }
 
 export interface Payment {
