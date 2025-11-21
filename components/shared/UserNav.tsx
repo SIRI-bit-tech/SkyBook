@@ -69,9 +69,9 @@ export function UserNav() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <Link href="/bookings" className="cursor-pointer">
+          <Link href="/dashboard" className="cursor-pointer">
             <Plane className="mr-2 h-4 w-4" />
-            <span>My Bookings</span>
+            <span>My Dashboard</span>
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>

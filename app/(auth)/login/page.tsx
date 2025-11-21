@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { signIn } from '@/lib/auth-client';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [credentials, setCredentials] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -27,7 +28,9 @@ export default function LoginPage() {
       // Set role cookie for middleware
       await fetch('/api/auth/set-role', { method: 'POST' });
       
-      router.push('/bookings');
+      // Redirect to the page they were trying to access, or dashboard
+      const redirect = searchParams.get('redirect') || '/dashboard';
+      router.push(redirect);
       router.refresh();
     } catch (err: any) {
       setError(err?.message || 'Invalid credentials');
