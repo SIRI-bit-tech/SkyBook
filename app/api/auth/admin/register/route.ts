@@ -7,19 +7,38 @@ export async function POST(request: NextRequest) {
   try {
     await connectToDatabase();
 
-    const { name, email, password, role } = await request.json();
+    const { username, email, password, adminCode, role } = await request.json();
 
-    if (!name || !email || !password) {
+    if (!username || !email || !password || !adminCode) {
       return NextResponse.json(
         { message: 'All fields required' },
         { status: 400 }
       );
     }
 
-    const existingUser = await UserModel.findOne({ email });
-    if (existingUser) {
+    // Validate admin code from environment variable
+    const validAdminCode = process.env.ADMIN_CODE || 'SKYBOOK2024';
+    if (adminCode !== validAdminCode) {
+      return NextResponse.json(
+        { message: 'Invalid admin registration code' },
+        { status: 401 }
+      );
+    }
+
+    // Check if email already exists
+    const existingEmail = await UserModel.findOne({ email });
+    if (existingEmail) {
       return NextResponse.json(
         { message: 'Email already registered' },
+        { status: 400 }
+      );
+    }
+
+    // Check if username already exists
+    const existingUsername = await UserModel.findOne({ username });
+    if (existingUsername) {
+      return NextResponse.json(
+        { message: 'Username already taken' },
         { status: 400 }
       );
     }
@@ -27,7 +46,7 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await UserModel.create({
-      name,
+      username,
       email,
       password: hashedPassword,
       role: role || 'admin',

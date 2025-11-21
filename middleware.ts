@@ -36,12 +36,15 @@ const publicRoutes = [
   '/',
   '/login',
   '/register',
+  '/admin-auth',
   '/about',
   '/contact',
   '/faq',
   '/airlines',
   '/search',
   '/flights',
+  '/forgot-password',
+  '/reset-password',
 ];
 
 export function middleware(request: NextRequest) {
@@ -55,6 +58,7 @@ export function middleware(request: NextRequest) {
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
   const isAdminRoute = adminRoutes.some(route => pathname.startsWith(route));
   const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/register');
+  const isAdminAuthRoute = pathname.startsWith('/admin-auth');
 
   // Redirect to login if accessing protected route without auth
   if (isProtectedRoute && !isAuthenticated) {
@@ -64,8 +68,13 @@ export function middleware(request: NextRequest) {
   }
 
   // Redirect to home if accessing auth routes while authenticated
-  if (isAuthRoute && isAuthenticated) {
+  if (isAuthRoute && isAuthenticated && !isAdminAuthRoute) {
     return NextResponse.redirect(new URL('/', request.url));
+  }
+
+  // Allow admin auth routes to be accessed without authentication
+  if (isAdminAuthRoute) {
+    return NextResponse.next();
   }
 
   // Admin route protection (two-layer security)

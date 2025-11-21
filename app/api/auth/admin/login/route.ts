@@ -11,12 +11,25 @@ export async function POST(request: NextRequest) {
 
     if (!email || !password) {
       return NextResponse.json(
-        { message: 'Email and password required' },
+        { message: 'Email/Username and password required' },
         { status: 400 }
       );
     }
 
-    const user = await UserModel.findOne({ email, role: 'admin' });
+    // Check if input is email or username
+    // Try to find user by email first, then by username
+    let user = await UserModel.findOne({ 
+      email: email.toLowerCase(), 
+      role: 'admin' 
+    });
+
+    // If not found by email, try finding by username
+    if (!user) {
+      user = await UserModel.findOne({ 
+        username: email, 
+        role: 'admin' 
+      });
+    }
 
     if (!user) {
       return NextResponse.json(
