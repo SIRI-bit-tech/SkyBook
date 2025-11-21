@@ -9,8 +9,15 @@ export async function GET(request: NextRequest) {
     await connectToDatabase();
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '20');
+    
+    // Validate and sanitize pagination parameters
+    const pageParam = parseInt(searchParams.get('page') || '1');
+    const limitParam = parseInt(searchParams.get('limit') || '20');
+    
+    const page = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
+    const maxLimit = 100;
+    const limit = isNaN(limitParam) ? 20 : Math.min(Math.max(limitParam, 1), maxLimit);
+    
     const search = searchParams.get('search');
     const role = searchParams.get('role');
 
@@ -48,6 +55,16 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error fetching users:', error);
+    
+    // Handle authentication/authorization errors
+    const errorMessage = error instanceof Error ? error.message : '';
+    if (errorMessage === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (errorMessage.includes('Forbidden') || errorMessage.includes('Admin')) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    
     return NextResponse.json(
       { error: 'Failed to fetch users' },
       { status: 500 }
