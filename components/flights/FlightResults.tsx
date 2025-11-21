@@ -8,68 +8,10 @@ import { formatDuration, formatTime, formatDate, parseDuration } from '@/lib/fli
 import { getAirlineLogo, getAirlineName } from '@/lib/airline-logos';
 import FlightComparison from './FlightComparison';
 import Image from 'next/image';
-
-export interface FlightSegment {
-  departure: {
-    iataCode: string;
-    at: string;
-    terminal?: string;
-    timeZone?: string;
-  };
-  arrival: {
-    iataCode: string;
-    at: string;
-    terminal?: string;
-    timeZone?: string;
-  };
-  carrierCode: string;
-  number: string;
-  flightNumber: string;
-  duration: string;
-  aircraft?: {
-    code: string;
-  };
-}
-
-export interface Flight {
-  id: string;
-  airline: {
-    code: string;
-    name: string;
-  };
-  price: {
-    amount: number;
-    currency: string;
-    total: string;
-  };
-  departure: {
-    airport: string;
-    time: string;
-  };
-  arrival: {
-    airport: string;
-    time: string;
-  };
-  duration: string;
-  stops: number;
-  segments: FlightSegment[];
-  validatingAirlineCodes?: string[];
-  numberOfBookableSeats?: number;
-  itineraries?: Array<{
-    duration: string;
-    segments: FlightSegment[];
-  }>;
-}
-
-export interface Filters {
-  airlines: string[];
-  priceRange: [number, number];
-  stops: number[];
-  departureTime: string[];
-}
+import { FlightResult, Filters } from '@/types/global';
 
 interface FlightResultsProps {
-  flights: Flight[];
+  flights: FlightResult[];
   loading: boolean;
   error: string | null;
   filters: Filters;
@@ -79,7 +21,7 @@ type SortOption = 'price-low' | 'price-high' | 'duration-short' | 'duration-long
 
 export default function FlightResults({ flights, loading, error, filters }: FlightResultsProps) {
   const [sortBy, setSortBy] = useState<SortOption>('price-low');
-  const [compareFlights, setCompareFlights] = useState<Flight[]>([]);
+  const [compareFlights, setCompareFlights] = useState<FlightResult[]>([]);
   const [showComparison, setShowComparison] = useState(false);
   const { airlines: selectedAirlines, priceRange, stops: selectedStops, departureTime } = filters;
 
@@ -204,7 +146,7 @@ export default function FlightResults({ flights, loading, error, filters }: Flig
     );
   }
 
-  const toggleCompare = (flight: Flight) => {
+  const toggleCompare = (flight: FlightResult) => {
     setCompareFlights(prev => {
       // Validate flight and flight.id
       if (!flight || flight.id == null) {
@@ -280,7 +222,7 @@ export default function FlightResults({ flights, loading, error, filters }: Flig
 }
 
 interface FlightCardProps {
-  flight: Flight;
+  flight: FlightResult;
   isComparing?: boolean;
   onToggleCompare?: () => void;
 }
@@ -290,6 +232,7 @@ function FlightCard({
   isComparing, 
   onToggleCompare 
 }: FlightCardProps) {
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
   const itinerary = flight.itineraries?.[0];
   const segments = itinerary?.segments || [];
   const firstSegment = segments[0];
@@ -318,60 +261,6 @@ function FlightCard({
                     width={48}
                     height={48}
                     className="object-contain"
-function FlightCard({ 
-  flight, 
-  isComparing, 
-  onToggleCompare 
-}: { 
-  flight: any;
-  isComparing?: boolean;
-  onToggleCompare?: () => void;
-}) {
-  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
-  const itinerary = flight.itineraries?.[0];
-  const segments = itinerary?.segments || [];
-  const firstSegment = segments[0];
-  const lastSegment = segments[segments.length - 1];
-  const stops = segments.length - 1;
-
-  const departureTime = firstSegment?.departure?.at;
-  const arrivalTime = lastSegment?.arrival?.at;
-  const duration = itinerary?.duration;
-  const price = flight.price?.total;
-  const currency = flight.price?.currency;
-  const airlines = flight.validatingAirlineCodes || [];
-
-  return (
-    <Card className={`bg-slate-800 border-slate-700 p-6 hover:border-sky-500 transition ${isComparing ? 'border-sky-500 ring-2 ring-sky-500' : ''}`}>
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
-        {/* Airline Logo */}
-        <div className="md:col-span-2">
-          <div className="flex flex-col gap-2">
-            {airlines.slice(0, 2).map((code: string, idx: number) => (
-              <div key={idx} className="flex items-center gap-2">
-                <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center p-1 overflow-hidden">
-                  {imageErrors[code] ? (
-                    <span className="text-xs font-bold text-slate-800">{code}</span>
-                  ) : (
-                    <Image
-                      src={getAirlineLogo(code)}
-                      alt={code}
-                      width={48}
-                      height={48}
-                      className="object-contain"
-                      onError={() => setImageErrors(prev => ({ ...prev, [code]: true }))}
-                    />
-                  )}
-                </div>
-                <span className="text-sm text-slate-300">{getAirlineName(code)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </Card>
-  );
-}
                   />
                 </div>
                 <span className="text-sm text-slate-300">{getAirlineName(code)}</span>

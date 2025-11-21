@@ -1,98 +1,87 @@
-import mongoose, { Schema, Document, Types } from 'mongoose';
-import { Booking } from '@/types/global';
+import mongoose from 'mongoose';
 
-interface IBooking extends Omit<Booking, '_id' | 'user' | 'flight' | 'passengers' | 'paymentId'>, Document {
-  user: Types.ObjectId;
-  flight: Types.ObjectId;
-  passengers: Types.ObjectId[];
-  paymentId?: Types.ObjectId;
-  baggage?: number;
-  meals?: 'none' | 'standard' | 'vegetarian' | 'vegan' | 'halal' | 'kosher';
-  specialRequests?: string;
-  travelInsurance?: boolean;
-  insurancePrice?: number;
-  addOns?: Array<{
-    name: string;
-    price: number;
-    quantity: number;
-  }>;
-  baseFare?: number;
-  taxes?: number;
-  addOnTotal?: number;
-}
+const PassengerSchema = new mongoose.Schema({
+  firstName: { type: String, required: true },
+  lastName: { type: String, required: true },
+  dateOfBirth: { type: Date, required: true },
+  passportNumber: { type: String },
+  nationality: { type: String },
+  email: { type: String, required: true },
+  phone: { type: String },
+});
 
-const bookingSchema = new Schema<IBooking>(
-  {
-    bookingReference: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    user: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
-    flight: {
-      type: Schema.Types.ObjectId,
-      ref: 'Flight',
-      required: true,
-    },
-    passengers: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: 'Passenger',
-      },
-    ],
-    seats: [String],
-    totalPrice: Number,
-    paymentId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Payment',
-    },
-    status: {
-      type: String,
-      enum: ['pending', 'confirmed', 'checked-in', 'cancelled'],
-      default: 'pending',
-    },
-    qrCode: String,
-    ticketUrl: String,
-    checkedInAt: Date,
-    baggage: {
-      type: Number,
-      default: 1,
-      description: 'Number of baggage allowance'
-    },
-    meals: {
-      type: String,
-      enum: ['none', 'standard', 'vegetarian', 'vegan', 'halal', 'kosher'],
-      default: 'none'
-    },
-    specialRequests: {
-      type: String,
-      maxLength: 500
-    },
-    travelInsurance: {
-      type: Boolean,
-      default: false
-    },
-    insurancePrice: {
-      type: Number,
-      default: 0
-    },
-    addOns: [{
-      name: String,
-      price: Number,
-      quantity: Number
-    }],
-    baseFare: Number,
-    taxes: Number,
-    addOnTotal: Number,
+const AddOnSchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  name: { type: String, required: true },
+  price: { type: Number, required: true },
+  quantity: { type: Number, default: 1 },
+});
+
+const BookingAddOnsSchema = new mongoose.Schema({
+  baggage: { type: Number, default: 1 },
+  meals: { type: String, default: 'standard' },
+  specialRequests: { type: String, default: '' },
+  travelInsurance: { type: Boolean, default: false },
+  selectedAddOns: [AddOnSchema],
+});
+
+const BookingSchema = new mongoose.Schema({
+  bookingReference: {
+    type: String,
+    required: true,
+    unique: true,
+    index: true,
   },
-  {
-    timestamps: true,
-  }
-);
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
+  flight: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Flight',
+    required: true,
+  },
+  passengers: [PassengerSchema],
+  seats: [{
+    type: String,
+    required: true,
+  }],
+  addOns: {
+    type: BookingAddOnsSchema,
+    default: {},
+  },
+  totalPrice: {
+    type: Number,
+    required: true,
+  },
+  paymentId: {
+    type: String,
+    required: true,
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'confirmed', 'checked-in', 'cancelled'],
+    default: 'pending',
+  },
+  qrCode: {
+    type: String,
+    required: true,
+  },
+  ticketUrl: {
+    type: String,
+    required: true,
+  },
+  checkedInAt: {
+    type: Date,
+  },
+}, {
+  timestamps: true,
+});
 
-export const BookingModel =
-  mongoose.models.Booking || mongoose.model<IBooking>('Booking', bookingSchema);
+// Indexes for better query performance
+BookingSchema.index({ user: 1, createdAt: -1 });
+BookingSchema.index({ flight: 1 });
+BookingSchema.index({ status: 1 });
+
+export const Booking = mongoose.models.Booking || mongoose.model('Booking', BookingSchema);

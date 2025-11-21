@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button';
 import { X, Check } from 'lucide-react';
 import { formatDuration, formatTime, formatDate } from '@/lib/flight-utils';
 import { getAirlineLogo, getAirlineName } from '@/lib/airline-logos';
-import { Flight } from './FlightResults';
+import { FlightResult } from '@/types/global';
 import Image from 'next/image';
 
 interface FlightComparisonProps {
-  flights: Flight[];
+  flights: FlightResult[];
   onClose: () => void;
 }
 
@@ -44,7 +44,7 @@ export default function FlightComparison({ flights, onClose }: FlightComparisonP
   );
 }
 
-function ComparisonCard({ flight }: { flight: Flight }) {
+function ComparisonCard({ flight }: { flight: FlightResult }) {
   const itinerary = flight.itineraries?.[0];
   const segments = itinerary?.segments || [];
   const firstSegment = segments[0];

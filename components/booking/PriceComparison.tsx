@@ -3,15 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-
-interface PriceData {
-  airline: string;
-  price: number;
-  source: string;
-  departureTime: string;
-  duration: string;
-  stops: number;
-}
+import { PriceData } from '@/types/global';
 
 interface PriceComparisonProps {
   departureCode: string;

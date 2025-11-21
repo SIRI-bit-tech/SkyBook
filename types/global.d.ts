@@ -132,3 +132,148 @@ export interface FlightSearchResult extends Flight {
   arrivalAirport?: Airport;
   airlineData?: Airline;
 }
+
+// Flight Results Component Types
+export interface FlightSegment {
+  departure: {
+    iataCode: string;
+    at: string;
+    terminal?: string;
+    timeZone?: string;
+  };
+  arrival: {
+    iataCode: string;
+    at: string;
+    terminal?: string;
+    timeZone?: string;
+  };
+  carrierCode: string;
+  number: string;
+  flightNumber: string;
+  duration: string;
+  aircraft?: {
+    code: string;
+  };
+}
+
+export interface FlightResult {
+  id: string;
+  airline: {
+    code: string;
+    name: string;
+  };
+  price: {
+    amount: number;
+    currency: string;
+    total: string;
+  };
+  departure: {
+    airport: string;
+    time: string;
+  };
+  arrival: {
+    airport: string;
+    time: string;
+  };
+  duration: string;
+  stops: number;
+  segments: FlightSegment[];
+  validatingAirlineCodes?: string[];
+  numberOfBookableSeats?: number;
+  itineraries?: Array<{
+    duration: string;
+    segments: FlightSegment[];
+  }>;
+}
+
+export interface Filters {
+  airlines: string[];
+  priceRange: [number, number];
+  stops: number[];
+  departureTime: string[];
+}
+
+// Booking Component Types
+export interface PassengerFormData {
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  passportNumber: string;
+  email: string;
+  phone: string;
+  nationality: string;
+}
+
+export interface AddOn {
+  id: string;
+  name: string;
+  price: number;
+  description?: string;
+}
+
+export interface BookingAddOns {
+  baggage: number;
+  meals: string;
+  specialRequests: string;
+  travelInsurance: boolean;
+  selectedAddOns: { id: string; name: string; price: number; quantity: number }[];
+}
+
+export interface PriceBreakdown {
+  basePrice: number;
+  taxes: number;
+  addOnsTotal: number;
+  insuranceTotal: number;
+  grandTotal: number;
+}
+
+export interface PaymentDetails {
+  cardNumber: string;
+  expiryDate: string;
+  cvv: string;
+  name: string;
+  billingAddress: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+  };
+}
+
+// Flight Tracker Types
+export interface FlightStatus {
+  flightNumber: string;
+  airline: string;
+  departureAirport: string;
+  arrivalAirport: string;
+  departureTime: string;
+  arrivalTime: string;
+  status: 'scheduled' | 'departed' | 'in_air' | 'landed' | 'delayed' | 'cancelled';
+  delayMinutes?: number;
+  currentAltitude?: number;
+  currentSpeed?: number;
+  position?: {
+    latitude: number;
+    longitude: number;
+  };
+  aircraft?: string;
+  gate?: string;
+  lastUpdate: string;
+}
+
+// Price Comparison Types
+export interface PriceData {
+  airline: string;
+  price: number;
+  source: string;
+  departureTime: string;
+  duration: string;
+  stops: number;
+}
+
+// Breadcrumb Types
+export interface BreadcrumbItem {
+  label: string;
+  href: string;
+}
