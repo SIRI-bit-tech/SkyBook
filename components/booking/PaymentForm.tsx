@@ -1,68 +1,93 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PaymentDetails } from '@/types/global';
+import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
 interface PaymentFormProps {
-  onSubmit: (paymentDetails: PaymentDetails) => Promise<void>;
+  onSubmit: (paymentToken: string, billingDetails: BillingDetails) => Promise<void>;
   totalAmount: number;
   processing: boolean;
 }
 
+interface BillingDetails {
+  name: string;
+  address?: {
+    line1?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+    country?: string;
+  };
+}
+
 export default function PaymentForm({ onSubmit, totalAmount, processing }: PaymentFormProps) {
-  const [paymentDetails, setPaymentDetails] = useState<PaymentDetails>({
-    cardNumber: '',
-    expiryDate: '',
-    cvv: '',
-    name: '',
-    billingAddress: {
-      street: '',
-      city: '',
-      state: '',
-      zipCode: '',
-      country: '',
-    },
-  });
-
+  const stripe = useStripe();
+  const elements = useElements();
+  
+  const [name, setName] = useState('');
   const [showBilling, setShowBilling] = useState(false);
+  const [billingAddress, setBillingAddress] = useState({
+    line1: '',
+    city: '',
+    state: '',
+    postal_code: '',
+    country: '',
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [cardComplete, setCardComplete] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    await onSubmit(paymentDetails);
-  };
+    
+    if (!stripe || !elements) {
+      setError('Stripe has not loaded yet. Please try again.');
+      return;
+    }
 
-  const formatCardNumber = (value: string) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    const matches = v.match(/\d{4,16}/g);
-    const match = matches && matches[0] || '';
-    const parts = [];
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4));
+    const cardElement = elements.getElement(CardElement);
+    if (!cardElement) {
+      setError('Card element not found');
+      return;
     }
-    if (parts.length) {
-      return parts.join(' ');
-    } else {
-      return v;
-    }
-  };
 
-  const formatExpiryDate = (value: string) => {
-    const v = value.replace(/\D/g, '');
-    if (v.length >= 2) {
-      return v.substring(0, 2) + '/' + v.substring(2, 4);
+    setError(null);
+
+    try {
+      // Create payment method token using Stripe
+      const { error: tokenError, token } = await stripe.createToken(cardElement, {
+        name,
+        address_line1: showBilling ? billingAddress.line1 : undefined,
+        address_city: showBilling ? billingAddress.city : undefined,
+        address_state: showBilling ? billingAddress.state : undefined,
+        address_zip: showBilling ? billingAddress.postal_code : undefined,
+        address_country: showBilling ? billingAddress.country : undefined,
+      });
+
+      if (tokenError) {
+        setError(tokenError.message || 'Failed to process card');
+        return;
+      }
+
+      if (!token) {
+        setError('Failed to create payment token');
+        return;
+      }
+
+      // Send only the token to the backend
+      await onSubmit(token.id, {
+        name,
+        address: showBilling ? billingAddress : undefined,
+      });
+    } catch (err) {
+      setError('Payment processing failed. Please try again.');
+      console.error('Payment error:', err);
     }
-    return v;
   };
 
   const isFormValid = () => {
-    return (
-      paymentDetails.name.trim() &&
-      paymentDetails.cardNumber.replace(/\s/g, '').length >= 13 &&
-      paymentDetails.expiryDate.length === 5 &&
-      paymentDetails.cvv.length >= 3
-    );
+    return name.trim() && cardComplete && !processing;
   };
 
   return (
@@ -70,6 +95,12 @@ export default function PaymentForm({ onSubmit, totalAmount, processing }: Payme
       <h3 className="text-2xl font-bold text-white mb-6">Payment Details</h3>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+            <p className="text-sm text-red-400">{error}</p>
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
             Cardholder Name *
@@ -77,11 +108,8 @@ export default function PaymentForm({ onSubmit, totalAmount, processing }: Payme
           <input
             type="text"
             required
-            value={paymentDetails.name}
-            onChange={(e) => setPaymentDetails({ 
-              ...paymentDetails, 
-              name: e.target.value 
-            })}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             className="w-full bg-slate-700 text-white rounded-lg px-4 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none"
             placeholder="Name on card"
           />
@@ -89,57 +117,37 @@ export default function PaymentForm({ onSubmit, totalAmount, processing }: Payme
 
         <div>
           <label className="block text-sm font-medium text-slate-300 mb-2">
-            Card Number *
+            Card Details *
           </label>
-          <input
-            type="text"
-            required
-            value={paymentDetails.cardNumber}
-            onChange={(e) => setPaymentDetails({ 
-              ...paymentDetails, 
-              cardNumber: formatCardNumber(e.target.value)
-            })}
-            className="w-full bg-slate-700 text-white rounded-lg px-4 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none font-mono"
-            placeholder="1234 5678 9012 3456"
-            maxLength={19}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Expiry Date *
-            </label>
-            <input
-              type="text"
-              required
-              value={paymentDetails.expiryDate}
-              onChange={(e) => setPaymentDetails({ 
-                ...paymentDetails, 
-                expiryDate: formatExpiryDate(e.target.value)
-              })}
-              className="w-full bg-slate-700 text-white rounded-lg px-4 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none"
-              placeholder="MM/YY"
-              maxLength={5}
+          <div className="w-full bg-slate-700 rounded-lg px-4 py-3 border border-slate-600 focus-within:border-sky-500">
+            <CardElement
+              options={{
+                style: {
+                  base: {
+                    fontSize: '16px',
+                    color: '#ffffff',
+                    '::placeholder': {
+                      color: '#94a3b8',
+                    },
+                  },
+                  invalid: {
+                    color: '#ef4444',
+                  },
+                },
+              }}
+              onChange={(e) => {
+                setCardComplete(e.complete);
+                if (e.error) {
+                  setError(e.error.message);
+                } else {
+                  setError(null);
+                }
+              }}
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              CVV *
-            </label>
-            <input
-              type="text"
-              required
-              value={paymentDetails.cvv}
-              onChange={(e) => setPaymentDetails({ 
-                ...paymentDetails, 
-                cvv: e.target.value.replace(/\D/g, '').slice(0, 4)
-              })}
-              className="w-full bg-slate-700 text-white rounded-lg px-4 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none"
-              placeholder="123"
-              maxLength={4}
-            />
-          </div>
+          <p className="text-xs text-slate-400 mt-1">
+            Secure card processing powered by Stripe
+          </p>
         </div>
 
         {/* Billing Address Toggle */}
@@ -161,11 +169,8 @@ export default function PaymentForm({ onSubmit, totalAmount, processing }: Payme
               </label>
               <input
                 type="text"
-                value={paymentDetails.billingAddress.street}
-                onChange={(e) => setPaymentDetails({
-                  ...paymentDetails,
-                  billingAddress: { ...paymentDetails.billingAddress, street: e.target.value }
-                })}
+                value={billingAddress.line1}
+                onChange={(e) => setBillingAddress({ ...billingAddress, line1: e.target.value })}
                 className="w-full bg-slate-700 text-white rounded-lg px-4 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none"
                 placeholder="123 Main Street"
               />
@@ -178,11 +183,8 @@ export default function PaymentForm({ onSubmit, totalAmount, processing }: Payme
                 </label>
                 <input
                   type="text"
-                  value={paymentDetails.billingAddress.city}
-                  onChange={(e) => setPaymentDetails({
-                    ...paymentDetails,
-                    billingAddress: { ...paymentDetails.billingAddress, city: e.target.value }
-                  })}
+                  value={billingAddress.city}
+                  onChange={(e) => setBillingAddress({ ...billingAddress, city: e.target.value })}
                   className="w-full bg-slate-700 text-white rounded-lg px-4 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none"
                   placeholder="City"
                 />
@@ -193,11 +195,8 @@ export default function PaymentForm({ onSubmit, totalAmount, processing }: Payme
                 </label>
                 <input
                   type="text"
-                  value={paymentDetails.billingAddress.state}
-                  onChange={(e) => setPaymentDetails({
-                    ...paymentDetails,
-                    billingAddress: { ...paymentDetails.billingAddress, state: e.target.value }
-                  })}
+                  value={billingAddress.state}
+                  onChange={(e) => setBillingAddress({ ...billingAddress, state: e.target.value })}
                   className="w-full bg-slate-700 text-white rounded-lg px-4 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none"
                   placeholder="State"
                 />
@@ -211,11 +210,8 @@ export default function PaymentForm({ onSubmit, totalAmount, processing }: Payme
                 </label>
                 <input
                   type="text"
-                  value={paymentDetails.billingAddress.zipCode}
-                  onChange={(e) => setPaymentDetails({
-                    ...paymentDetails,
-                    billingAddress: { ...paymentDetails.billingAddress, zipCode: e.target.value }
-                  })}
+                  value={billingAddress.postal_code}
+                  onChange={(e) => setBillingAddress({ ...billingAddress, postal_code: e.target.value })}
                   className="w-full bg-slate-700 text-white rounded-lg px-4 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none"
                   placeholder="12345"
                 />
@@ -226,13 +222,10 @@ export default function PaymentForm({ onSubmit, totalAmount, processing }: Payme
                 </label>
                 <input
                   type="text"
-                  value={paymentDetails.billingAddress.country}
-                  onChange={(e) => setPaymentDetails({
-                    ...paymentDetails,
-                    billingAddress: { ...paymentDetails.billingAddress, country: e.target.value }
-                  })}
+                  value={billingAddress.country}
+                  onChange={(e) => setBillingAddress({ ...billingAddress, country: e.target.value })}
                   className="w-full bg-slate-700 text-white rounded-lg px-4 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none"
-                  placeholder="Country"
+                  placeholder="US"
                 />
               </div>
             </div>

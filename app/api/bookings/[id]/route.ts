@@ -28,7 +28,12 @@ export async function GET(
     }
 
     // Check if user owns this booking or is admin
-    if (booking.user._id.toString() !== session.user.id && session.user.role !== 'admin') {
+    if (!booking.user) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+    
+    const bookingUserId = (booking.user as any)._id?.toString() ?? booking.user?.toString();
+    if (bookingUserId !== session.user.id && session.user.role !== 'admin') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -69,17 +74,43 @@ export async function PUT(
     }
 
     // Check if user owns this booking or is admin
-    if (booking.user.toString() !== session.user.id && session.user.role !== 'admin') {
+    if (!booking.user) {
+      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    }
+    
+    const bookingUserId = (booking.user as any)._id?.toString() ?? booking.user?.toString();
+    if (bookingUserId !== session.user.id && session.user.role !== 'admin') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
-    // Update allowed fields
-    const allowedUpdates = ['status', 'checkedInAt'];
+    // Update allowed fields with validation
     const updates: any = {};
     
-    for (const field of allowedUpdates) {
-      if (body[field] !== undefined) {
-        updates[field] = body[field];
+    // Validate status
+    if (body.status !== undefined) {
+      const validStatuses = ['pending', 'confirmed', 'checked-in', 'cancelled'];
+      if (!validStatuses.includes(body.status)) {
+        return NextResponse.json(
+          { error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` },
+          { status: 400 }
+        );
+      }
+      updates.status = body.status;
+    }
+    
+    // Validate checkedInAt
+    if (body.checkedInAt !== undefined) {
+      if (body.checkedInAt === null) {
+        updates.checkedInAt = null;
+      } else {
+        const date = new Date(body.checkedInAt);
+        if (isNaN(date.getTime())) {
+          return NextResponse.json(
+            { error: 'Invalid checkedInAt date. Must be a valid ISO-8601 date/time or null' },
+            { status: 400 }
+          );
+        }
+        updates.checkedInAt = date;
       }
     }
 

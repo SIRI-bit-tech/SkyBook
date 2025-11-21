@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Flight, PassengerFormData, BookingAddOns, PaymentDetails } from '@/types/global';
+import { Flight, PassengerFormData, BookingAddOns } from '@/types/global';
 import SeatMap from './SeatMap';
 import BookingSummary from './BookingSummary';
 import PassengerForm from './PassengerForm';
@@ -11,6 +11,7 @@ import PaymentForm from './PaymentForm';
 import PriceCalculator, { calculatePrice } from './PriceCalculator';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import StripeProvider from '@/components/providers/StripeProvider';
 
 export type BookingStep = 'seats' | 'passengers' | 'addons' | 'payment' | 'confirmation';
 
@@ -93,7 +94,7 @@ export default function BookingFlowManager({
     setCurrentStep('payment');
   };
 
-  const handlePayment = async (paymentDetails: PaymentDetails) => {
+  const handlePayment = async (paymentToken: string, billingDetails: { name: string; address?: any }) => {
     setProcessing(true);
     try {
       const priceBreakdown = calculatePrice(flight, passengers, bookingAddOns);
@@ -107,7 +108,8 @@ export default function BookingFlowManager({
           seats: selectedSeats,
           addOns: bookingAddOns,
           totalPrice: priceBreakdown.grandTotal,
-          paymentDetails,
+          paymentToken,
+          billingDetails,
         }),
       });
 
@@ -195,15 +197,17 @@ export default function BookingFlowManager({
           />
         );
 
-      case 'payment':
+      case 'payment': {
         const priceBreakdown = calculatePrice(flight, passengers, bookingAddOns);
         return (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <PaymentForm
-              onSubmit={handlePayment}
-              totalAmount={priceBreakdown.grandTotal}
-              processing={processing}
-            />
+            <StripeProvider>
+              <PaymentForm
+                onSubmit={handlePayment}
+                totalAmount={priceBreakdown.grandTotal}
+                processing={processing}
+              />
+            </StripeProvider>
             <div>
               <Card className="bg-slate-800 border-slate-700 p-6 mb-6">
                 <h3 className="text-xl font-bold text-white mb-4">Order Summary</h3>
@@ -259,6 +263,7 @@ export default function BookingFlowManager({
             </div>
           </div>
         );
+      }
 
       default:
         return null;

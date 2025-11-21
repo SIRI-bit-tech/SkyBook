@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import BookingConfirmation from '@/components/booking/BookingConfirmation';
+import { Booking } from '@/types/global';
 
 export default function ConfirmationPage() {
   const searchParams = useSearchParams();
-  const [booking, setBooking] = useState<any>(null);
+  const [booking, setBooking] = useState<Booking | null>(null);
   const [loading, setLoading] = useState(true);
 
   const bookingId = searchParams.get('bookingId');
