@@ -1,7 +1,13 @@
 import { Resend } from 'resend';
 import { PopulatedBooking } from '@/types/global';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Validate RESEND_API_KEY is configured
+const resendApiKey = process.env.RESEND_API_KEY?.trim();
+if (!resendApiKey) {
+  throw new Error('RESEND_API_KEY is required but not configured in environment variables');
+}
+
+const resend = new Resend(resendApiKey);
 
 interface SendTicketEmailParams {
   booking: PopulatedBooking;
@@ -10,10 +16,34 @@ interface SendTicketEmailParams {
 }
 
 export async function sendTicketEmail({ booking, pdfBuffer, qrCodeDataUrl }: SendTicketEmailParams) {
-  const passenger = booking.passengers[0];
+  // Collect all unique, non-empty passenger emails
+  const recipientEmails = Array.from(
+    new Set(
+      booking.passengers
+        .map(p => p.email?.trim())
+        .filter((email): email is string => !!email)
+    )
+  );
+
+  // Fallback to booking user email if no passenger emails found
+  if (recipientEmails.length === 0) {
+    const userEmail = booking.user.email?.trim();
+    if (userEmail) {
+      recipientEmails.push(userEmail);
+    } else {
+      return { success: false, error: 'No valid passenger emails found' };
+    }
+  }
+
   const flight = booking.flight;
   const departureDate = new Date(flight.departure.time);
   const arrivalDate = new Date(flight.arrival.time);
+  
+  // Use first passenger for greeting, or user name as fallback
+  const primaryPassenger = booking.passengers[0] || {
+    firstName: booking.user.firstName,
+    lastName: booking.user.lastName,
+  };
   
   const emailHtml = `
     <!DOCTYPE html>
@@ -153,7 +183,7 @@ export async function sendTicketEmail({ booking, pdfBuffer, qrCodeDataUrl }: Sen
         </div>
         
         <div class="content">
-          <p>Dear ${passenger.firstName} ${passenger.lastName},</p>
+          <p>Dear ${primaryPassenger.firstName} ${primaryPassenger.lastName},</p>
           
           <p>Thank you for booking with SkyBook! Your flight has been confirmed and your e-ticket is attached to this email.</p>
           
@@ -243,8 +273,8 @@ export async function sendTicketEmail({ booking, pdfBuffer, qrCodeDataUrl }: Sen
   
   try {
     const result = await resend.emails.send({
-      from: process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'SkyBook <noreply@skybook.com>',
-      to: passenger.email,
+      from: process.env.SMTP_FROM_EMAIL || 'SkyBook <noreply@skybook.com>',
+      to: recipientEmails,
       subject: `Your SkyBook E-Ticket - ${booking.bookingReference}`,
       html: emailHtml,
       attachments: [

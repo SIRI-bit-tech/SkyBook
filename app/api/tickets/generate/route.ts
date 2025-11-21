@@ -35,6 +35,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized access to booking' }, { status: 403 });
     }
 
+    // Verify booking is confirmed before generating ticket
+    if (booking.status !== 'confirmed') {
+      return NextResponse.json({ 
+        error: 'Tickets can only be generated for confirmed bookings' 
+      }, { status: 400 });
+    }
+
     // Generate QR code
     const qrCodeDataUrl = await generateQRCode(booking.bookingReference, booking._id.toString());
 

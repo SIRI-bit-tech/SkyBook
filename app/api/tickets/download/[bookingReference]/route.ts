@@ -2,15 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/mongodb';
 import { Booking } from '@/models/Booking';
 import { generateTicketPDF } from '@/lib/pdf-ticket-generator';
+import { getSession } from '@/lib/auth-server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { bookingReference: string } }
+  { params }: { params: Promise<{ bookingReference: string }> }
 ) {
   try {
+    // Verify user authentication
+    const session = await getSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     await connectToDatabase();
     
-    const { bookingReference } = params;
+    const { bookingReference } = await params;
 
     if (!bookingReference) {
       return NextResponse.json({ error: 'Booking reference is required' }, { status: 400 });
@@ -23,6 +30,19 @@ export async function GET(
 
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+    }
+
+    // Verify the user owns this booking (or is admin)
+    const isAdmin = session.user.role === 'admin';
+    if (booking.user._id.toString() !== session.user.id && !isAdmin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    // Verify booking is confirmed before generating ticket
+    if (booking.status !== 'confirmed') {
+      return NextResponse.json({ 
+        error: 'Tickets can only be generated for confirmed bookings' 
+      }, { status: 400 });
     }
 
     // Generate PDF ticket

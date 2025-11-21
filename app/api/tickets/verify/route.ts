@@ -26,17 +26,6 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Check if QR code is not too old (24 hours for security)
-    const qrAge = Date.now() - decryptedData.timestamp;
-    const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-    
-    if (qrAge > maxAge) {
-      return NextResponse.json({ 
-        valid: false, 
-        error: 'QR code has expired. Please generate a new ticket.' 
-      }, { status: 400 });
-    }
-
     // Fetch booking
     const booking = await Booking.findOne({
       _id: decryptedData.id,
@@ -52,20 +41,33 @@ export async function POST(request: NextRequest) {
       }, { status: 404 });
     }
 
-    // Check if booking is valid for travel
+    // Verify booking status is confirmed
+    if (booking.status !== 'confirmed' && booking.status !== 'checked-in') {
+      return NextResponse.json({ 
+        valid: false, 
+        error: booking.status === 'cancelled' 
+          ? 'This booking has been cancelled' 
+          : 'This booking is not confirmed' 
+      }, { status: 400 });
+    }
+
+    // Check flight validity window
     const now = new Date();
     const departureTime = new Date(booking.flight.departure.time);
     const arrivalTime = new Date(booking.flight.arrival.time);
 
-    // Booking should be confirmed and flight should be in the future or currently in progress
-    if (booking.status === 'cancelled') {
+    // Allow verification from 24 hours before departure until 2 hours after arrival
+    const validFrom = new Date(departureTime.getTime() - 24 * 60 * 60 * 1000); // 24 hours before departure
+    const validUntil = new Date(arrivalTime.getTime() + 2 * 60 * 60 * 1000); // 2 hours after arrival
+
+    if (now < validFrom) {
       return NextResponse.json({ 
         valid: false, 
-        error: 'This booking has been cancelled' 
+        error: 'Ticket verification is not yet available. Check-in opens 24 hours before departure.' 
       }, { status: 400 });
     }
 
-    if (arrivalTime < now) {
+    if (now > validUntil) {
       return NextResponse.json({ 
         valid: false, 
         error: 'This flight has already completed' 
@@ -149,6 +151,33 @@ export async function GET(request: NextRequest) {
         valid: false, 
         error: 'Booking not found' 
       }, { status: 404 });
+    }
+
+    // Verify booking status
+    if (booking.status !== 'confirmed' && booking.status !== 'checked-in') {
+      return NextResponse.json({ 
+        valid: false, 
+        error: booking.status === 'cancelled' 
+          ? 'This booking has been cancelled' 
+          : 'This booking is not confirmed' 
+      }, { status: 400 });
+    }
+
+    // Check flight validity window
+    const now = new Date();
+    const departureTime = new Date(booking.flight.departure.time);
+    const arrivalTime = new Date(booking.flight.arrival.time);
+
+    const validFrom = new Date(departureTime.getTime() - 24 * 60 * 60 * 1000);
+    const validUntil = new Date(arrivalTime.getTime() + 2 * 60 * 60 * 1000);
+
+    if (now < validFrom || now > validUntil) {
+      return NextResponse.json({ 
+        valid: false, 
+        error: now < validFrom 
+          ? 'Ticket verification not yet available' 
+          : 'Flight has completed' 
+      }, { status: 400 });
     }
 
     return NextResponse.json({

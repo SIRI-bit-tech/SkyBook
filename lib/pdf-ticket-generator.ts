@@ -3,6 +3,15 @@ import { generateQRCodeBuffer } from './qr-generator';
 import { PopulatedBooking } from '@/types/global';
 
 export async function generateTicketPDF(booking: PopulatedBooking): Promise<Buffer> {
+  // Validate booking data is populated
+  if (!booking.flight || typeof booking.flight === 'string') {
+    throw new Error('Booking flight data is not populated. Cannot generate PDF ticket.');
+  }
+
+  if (!booking.flight.departure?.time || !booking.flight.arrival?.time) {
+    throw new Error('Flight departure or arrival time is missing. Cannot generate PDF ticket.');
+  }
+
   // Create a new PDF document
   const pdfDoc = await PDFDocument.create();
   const page = pdfDoc.addPage([595, 842]); // A4 size
@@ -222,7 +231,11 @@ export async function generateTicketPDF(booking: PopulatedBooking): Promise<Buff
   
   yPosition -= 25;
   
-  booking.passengers.forEach((passenger, index) => {
+  // Guard against missing or invalid passenger/seat arrays
+  const passengers = Array.isArray(booking.passengers) ? booking.passengers : [];
+  const seats = Array.isArray(booking.seats) ? booking.seats : [];
+  
+  passengers.forEach((passenger, index) => {
     page.drawText(`${index + 1}. ${passenger.firstName} ${passenger.lastName}`, {
       x: 60,
       y: yPosition,
@@ -231,7 +244,9 @@ export async function generateTicketPDF(booking: PopulatedBooking): Promise<Buff
       color: darkColor,
     });
     
-    page.drawText(`Seat: ${booking.seats[index] || 'N/A'}`, {
+    // Safe seat access with bounds checking
+    const seat = index < seats.length ? seats[index] : 'N/A';
+    page.drawText(`Seat: ${seat}`, {
       x: 300,
       y: yPosition,
       size: 11,
@@ -273,7 +288,16 @@ export async function generateTicketPDF(booking: PopulatedBooking): Promise<Buff
   
   yPosition -= 25;
   
-  page.drawText(`Booked: ${new Date(booking.createdAt!).toLocaleDateString()}`, {
+  // Validate and format booking creation date
+  let bookedDate = 'N/A';
+  if (booking.createdAt) {
+    const date = new Date(booking.createdAt);
+    if (date.toString() !== 'Invalid Date') {
+      bookedDate = date.toLocaleDateString();
+    }
+  }
+  
+  page.drawText(`Booked: ${bookedDate}`, {
     x: 60,
     y: yPosition,
     size: 10,
@@ -281,8 +305,12 @@ export async function generateTicketPDF(booking: PopulatedBooking): Promise<Buff
     color: darkColor,
   });
   
-  // QR Code
-  const qrBuffer = await generateQRCodeBuffer(booking.bookingReference, booking._id!);
+  // QR Code - validate booking ID exists
+  if (!booking._id) {
+    throw new Error('Booking ID is missing. Cannot generate QR code.');
+  }
+  
+  const qrBuffer = await generateQRCodeBuffer(booking.bookingReference, booking._id);
   const qrImage = await pdfDoc.embedPng(qrBuffer);
   
   page.drawImage(qrImage, {
