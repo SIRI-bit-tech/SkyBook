@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Plane, User, Lock, Eye, EyeOff } from 'lucide-react';
 
@@ -117,9 +118,9 @@ export default function AdminLoginPage() {
 
           {/* Forgot Password Link */}
           <div className="text-right">
-            <a href="#" className="text-sm text-[#1E3A5F] hover:text-[#2A4A73] font-medium">
+            <Link href="/forgot-password" className="text-sm text-[#1E3A5F] hover:text-[#2A4A73] font-medium">
               Forgot password?
-            </a>
+            </Link>
           </div>
 
           {/* Login Button */}

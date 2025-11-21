@@ -17,24 +17,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid email format' }, { status: 400 });
     }
 
+    // Normalize email consistently
+    const normalizedEmail = email.toLowerCase();
+
     // Connect to database and check if user exists
     await connectToDatabase();
-    const user = await UserModel.findOne({ email: email.toLowerCase() });
+    const user = await UserModel.findOne({ email: normalizedEmail });
 
-    if (!user) {
-      return NextResponse.json(
-        { error: 'No account registered with this email address' },
-        { status: 404 }
-      );
+    // Always call forgetPassword if user exists, but don't reveal if account exists
+    if (user) {
+      await auth.api.forgetPassword({
+        body: { email: normalizedEmail },
+      });
     }
 
-    // Use better-auth's forgetPassword method
-    await auth.api.forgetPassword({
-      body: { email },
-    });
-
+    // Always return the same generic success response to prevent user enumeration
     return NextResponse.json({
-      message: 'Password reset email sent successfully',
+      message: 'If an account exists with this email, a password reset link has been sent',
     });
   } catch (error: any) {
     console.error('Forgot password error:', error);
