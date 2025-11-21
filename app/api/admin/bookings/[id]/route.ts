@@ -54,7 +54,7 @@ export async function PATCH(
       { $set: data },
       { new: true, runValidators: true }
     )
-      .populate('user', 'firstName lastName email')
+      .populate('user', 'firstName lastName email phone')
       .populate({
         path: 'flight',
         populate: [

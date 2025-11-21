@@ -15,27 +15,57 @@ export function FlightForm({ flight, onSubmit, onCancel }: FlightFormProps) {
   const [airlines, setAirlines] = useState<Airline[]>([]);
   const [airports, setAirports] = useState<Airport[]>([]);
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(() => ({
     flightNumber: flight?.flightNumber || '',
-    airline: flight?.airline || '',
-    departureAirport: '',
-    departureTime: '',
-    departureTerminal: '',
-    arrivalAirport: '',
-    arrivalTime: '',
-    arrivalTerminal: '',
+    airline: (flight?.airline as string) || '',
+    departureAirport: (flight?.departure as any)?.airport || '',
+    departureTime: flight?.departure?.time
+      ? new Date(flight.departure.time).toISOString().slice(0, 16)
+      : '',
+    departureTerminal: (flight?.departure as any)?.terminal || '',
+    arrivalAirport: (flight?.arrival as any)?.airport || '',
+    arrivalTime: flight?.arrival?.time
+      ? new Date(flight.arrival.time).toISOString().slice(0, 16)
+      : '',
+    arrivalTerminal: (flight?.arrival as any)?.terminal || '',
     aircraft: flight?.aircraft || '',
     economyPrice: flight?.price?.economy || '',
     businessPrice: flight?.price?.business || '',
     firstClassPrice: flight?.price?.firstClass || '',
     availableSeats: flight?.availableSeats || '',
     status: (flight?.status || 'scheduled') as 'scheduled' | 'delayed' | 'cancelled' | 'completed',
-  });
+  }));
 
   useEffect(() => {
     fetchAirlines();
     fetchAirports();
   }, []);
+
+  // Sync form data when flight prop changes (for reused form instances)
+  useEffect(() => {
+    if (!flight) return;
+    
+    setFormData({
+      flightNumber: flight.flightNumber || '',
+      airline: (flight.airline as string) || '',
+      departureAirport: (flight.departure as any)?.airport || '',
+      departureTime: flight.departure?.time
+        ? new Date(flight.departure.time).toISOString().slice(0, 16)
+        : '',
+      departureTerminal: (flight.departure as any)?.terminal || '',
+      arrivalAirport: (flight.arrival as any)?.airport || '',
+      arrivalTime: flight.arrival?.time
+        ? new Date(flight.arrival.time).toISOString().slice(0, 16)
+        : '',
+      arrivalTerminal: (flight.arrival as any)?.terminal || '',
+      aircraft: flight.aircraft || '',
+      economyPrice: flight.price?.economy || '',
+      businessPrice: flight.price?.business || '',
+      firstClassPrice: flight.price?.firstClass || '',
+      availableSeats: flight.availableSeats || '',
+      status: (flight.status || 'scheduled') as 'scheduled' | 'delayed' | 'cancelled' | 'completed',
+    });
+  }, [flight]);
 
   const fetchAirlines = async () => {
     try {
