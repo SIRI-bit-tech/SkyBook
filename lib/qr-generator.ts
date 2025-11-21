@@ -1,17 +1,23 @@
 import QRCode from 'qrcode';
 import crypto from 'crypto';
 
-const ENCRYPTION_KEY = process.env.QR_ENCRYPTION_KEY || process.env.BETTER_AUTH_SECRET || 'default-key-change-in-production';
+// Validate encryption key is configured - fail fast if missing
+const RAW_ENCRYPTION_KEY = process.env.QR_ENCRYPTION_KEY || process.env.BETTER_AUTH_SECRET;
+if (!RAW_ENCRYPTION_KEY) {
+  throw new Error('QR_ENCRYPTION_KEY or BETTER_AUTH_SECRET must be set for secure ticket generation');
+}
+
 const ALGORITHM = 'aes-256-cbc';
+// Derive key once at module load for better performance and security
+const KEY = crypto.scryptSync(RAW_ENCRYPTION_KEY, 'salt', 32);
 
 /**
  * Encrypt booking data for QR code
  */
 export function encryptBookingData(bookingReference: string, bookingId: string): string {
-  const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
   const iv = crypto.randomBytes(16);
   
-  const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
+  const cipher = crypto.createCipheriv(ALGORITHM, KEY, iv);
   const data = JSON.stringify({
     ref: bookingReference,
     id: bookingId,
@@ -30,7 +36,6 @@ export function encryptBookingData(bookingReference: string, bookingId: string):
  */
 export function decryptBookingData(encryptedData: string): { ref: string; id: string; timestamp: number } | null {
   try {
-    const key = crypto.scryptSync(ENCRYPTION_KEY, 'salt', 32);
     const [ivHex, encrypted] = encryptedData.split(':');
     
     if (!ivHex || !encrypted) {
@@ -38,7 +43,7 @@ export function decryptBookingData(encryptedData: string): { ref: string; id: st
     }
     
     const iv = Buffer.from(ivHex, 'hex');
-    const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+    const decipher = crypto.createDecipheriv(ALGORITHM, KEY, iv);
     
     let decrypted = decipher.update(encrypted, 'hex', 'utf8');
     decrypted += decipher.final('utf8');
@@ -54,8 +59,13 @@ export function decryptBookingData(encryptedData: string): { ref: string; id: st
  * Generate QR code as data URL
  */
 export async function generateQRCode(bookingReference: string, bookingId: string): Promise<string> {
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
+  if (!APP_URL) {
+    throw new Error('NEXT_PUBLIC_APP_URL must be set to generate QR codes');
+  }
+
   const encryptedData = encryptBookingData(bookingReference, bookingId);
-  const qrData = `${process.env.NEXT_PUBLIC_APP_URL}/verify-ticket?data=${encodeURIComponent(encryptedData)}`;
+  const qrData = `${APP_URL}/verify-ticket?data=${encodeURIComponent(encryptedData)}`;
   
   const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
     errorCorrectionLevel: 'H',
@@ -75,8 +85,13 @@ export async function generateQRCode(bookingReference: string, bookingId: string
  * Generate QR code as buffer for PDF embedding
  */
 export async function generateQRCodeBuffer(bookingReference: string, bookingId: string): Promise<Buffer> {
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
+  if (!APP_URL) {
+    throw new Error('NEXT_PUBLIC_APP_URL must be set to generate QR codes');
+  }
+
   const encryptedData = encryptBookingData(bookingReference, bookingId);
-  const qrData = `${process.env.NEXT_PUBLIC_APP_URL}/verify-ticket?data=${encodeURIComponent(encryptedData)}`;
+  const qrData = `${APP_URL}/verify-ticket?data=${encodeURIComponent(encryptedData)}`;
   
   const buffer = await QRCode.toBuffer(qrData, {
     errorCorrectionLevel: 'H',

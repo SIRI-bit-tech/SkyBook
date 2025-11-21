@@ -5,7 +5,7 @@ import { getSession } from '@/lib/auth-server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectToDatabase();
@@ -16,7 +16,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const bookingId = params.id;
+    const { id: bookingId } = await params;
 
     // Find booking and populate related data
     const booking = await Booking.findById(bookingId)
@@ -53,7 +53,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     await connectToDatabase();
@@ -64,7 +64,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const bookingId = params.id;
+    const { id: bookingId } = await params;
     const body = await request.json();
 
     // Find booking

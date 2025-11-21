@@ -30,6 +30,14 @@ interface VerificationResult {
   error?: string;
 }
 
+/**
+ * Admin Ticket Verification Page
+ * 
+ * This page is protected by server-side authentication in app/admin/layout.tsx
+ * - Unauthenticated users are redirected to /login?redirect=/admin
+ * - Non-admin users are redirected to /dashboard
+ * - Only users with role='admin' can access this page
+ */
 export default function AdminVerifyTicketPage() {
   const [qrData, setQrData] = useState('');
   const [loading, setLoading] = useState(false);
@@ -43,10 +51,22 @@ export default function AdminVerifyTicketPage() {
 
     try {
       // Extract encrypted data from URL if full URL is provided
-      let encryptedData = qrData;
+      let encryptedData = qrData.trim();
+      
       if (qrData.includes('data=')) {
-        const url = new URL(qrData);
-        encryptedData = url.searchParams.get('data') || '';
+        try {
+          // Try to parse as URL
+          const url = new URL(qrData);
+          encryptedData = url.searchParams.get('data') || encryptedData;
+        } catch (urlError) {
+          // If URL parsing fails, try regex extraction as fallback
+          console.warn('URL parsing failed, attempting regex extraction:', urlError);
+          const match = qrData.match(/data=([^&\s]+)/);
+          if (match && match[1]) {
+            encryptedData = decodeURIComponent(match[1]);
+          }
+          // If regex also fails, encryptedData remains as the original qrData
+        }
       }
 
       const response = await fetch('/api/tickets/verify', {

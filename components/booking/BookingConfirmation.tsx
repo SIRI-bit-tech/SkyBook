@@ -13,6 +13,18 @@ export default function BookingConfirmation({ booking }: BookingConfirmationProp
   const departureTime = new Date(booking.flight.departure.time);
   const arrivalTime = new Date(booking.flight.arrival.time);
 
+  // Helper to safely get airline name
+  const getAirlineName = () => {
+    const airline = booking.flight.airline;
+    if (typeof airline === 'string') {
+      return airline;
+    }
+    if (typeof airline === 'object' && airline !== null && 'name' in airline) {
+      return (airline as { name: string }).name;
+    }
+    return 'Airline';
+  };
+
   const handleDownloadTicket = () => {
     // Download the PDF ticket
     window.open(`/api/tickets/download/${booking.bookingReference}`, '_blank');
@@ -101,9 +113,7 @@ export default function BookingConfirmation({ booking }: BookingConfirmationProp
             <div className="space-y-6">
               <div>
                 <p className="text-sm text-slate-400 mb-2">Airline</p>
-                <p className="text-white font-semibold">
-                  {typeof booking.flight.airline === 'string' ? booking.flight.airline : (booking.flight.airline as any)?.name || 'Airline'}
-                </p>
+                <p className="text-white font-semibold">{getAirlineName()}</p>
               </div>
               
               <div className="grid grid-cols-2 gap-4">

@@ -4,11 +4,23 @@ import { redirect } from 'next/navigation';
 import { requireAdmin } from '@/lib/auth-server';
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
-  // Server-side role check - throws error if not admin
+  // Server-side authentication and authorization check
   try {
     await requireAdmin();
   } catch (error) {
-    // Redirect non-admin users to home
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // If user is not authenticated, redirect to login
+    if (errorMessage === 'Unauthorized') {
+      redirect('/login?redirect=/admin');
+    }
+    
+    // If user is authenticated but not admin, redirect to dashboard
+    if (errorMessage.includes('Forbidden') || errorMessage.includes('Admin')) {
+      redirect('/dashboard');
+    }
+    
+    // Default: redirect to home
     redirect('/');
   }
 
@@ -24,6 +36,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             <Link href="/admin/flights" className="text-slate-300 hover:text-white transition">Flights</Link>
             <Link href="/admin/airlines" className="text-slate-300 hover:text-white transition">Airlines</Link>
             <Link href="/admin/bookings" className="text-slate-300 hover:text-white transition">Bookings</Link>
+            <Link href="/admin/verify-ticket" className="text-slate-300 hover:text-white transition">Verify Ticket</Link>
             <Link href="/" className="text-slate-300 hover:text-white transition">Back to Site</Link>
           </div>
         </div>

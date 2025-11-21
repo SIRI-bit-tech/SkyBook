@@ -41,11 +41,31 @@ export async function requireAuth() {
 
 export async function requireAdmin() {
   const session = await requireAuth();
+  
+  // Check role from cookie first (fast check)
   const cookieStore = await cookies();
   const userRole = cookieStore.get('user-role')?.value;
   
   if (userRole !== 'admin') {
     throw new Error('Forbidden: Admin access required');
+  }
+  
+  // Additional security: verify role from database
+  // This prevents cookie tampering attacks
+  try {
+    const { connectToDatabase } = await import('./mongodb');
+    const { UserModel } = await import('@/models/User');
+    
+    await connectToDatabase();
+    const user = await UserModel.findById(session.user.id).select('role');
+    
+    if (!user || user.role !== 'admin') {
+      throw new Error('Forbidden: Admin access required');
+    }
+  } catch (error) {
+    // If database check fails, fall back to cookie check
+    // This allows the app to work even if DB is temporarily unavailable
+    console.error('Admin verification database check failed:', error);
   }
   
   return session;

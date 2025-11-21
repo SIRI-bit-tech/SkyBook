@@ -5,12 +5,13 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { code: string } }
+  { params }: { params: Promise<{ code: string }> }
 ) {
   try {
     await connectToDatabase();
 
-    const airline = await AirlineModel.findOne({ code: params.code.toUpperCase() });
+    const { code } = await params;
+    const airline = await AirlineModel.findOne({ code: code.toUpperCase() });
 
     if (!airline) {
       return NextResponse.json({ error: 'Airline not found' }, { status: 404 });
