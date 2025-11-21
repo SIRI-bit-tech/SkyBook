@@ -34,7 +34,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/faq" className="text-white/80 hover:text-white transition text-sm">
+                <Link href="/press" className="text-white/80 hover:text-white transition text-sm">
                   Press
                 </Link>
               </li>
