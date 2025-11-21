@@ -30,12 +30,12 @@ export function UserNav() {
     return (
       <div className="flex items-center gap-4">
         <Link href="/login">
-          <Button variant="ghost" className="text-white hover:text-sky-400">
+          <Button variant="ghost" className="text-gray-700 hover:text-[#1E3A5F] font-medium">
             Sign In
           </Button>
         </Link>
         <Link href="/register">
-          <Button className="bg-sky-500 hover:bg-sky-600 text-white">
+          <Button className="bg-sky-500 hover:bg-sky-600 text-white font-medium">
             Sign Up
           </Button>
         </Link>

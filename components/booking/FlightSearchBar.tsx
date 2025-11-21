@@ -101,126 +101,130 @@ export default function FlightSearchBar() {
   };
 
   return (
-    <Card className="bg-slate-800 border-slate-700 p-8 shadow-xl">
-      <form onSubmit={handleSearch} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Trip Type */}
-        <div className="lg:col-span-1">
-          <label className="block text-sm font-medium text-slate-300 mb-2">Trip Type</label>
-          <select
-            value={search.tripType}
-            onChange={(e) => setSearch({ ...search, tripType: e.target.value as any })}
-            className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none"
-          >
-            <option value="one-way">One Way</option>
-            <option value="round-trip">Round Trip</option>
-          </select>
-        </div>
+    <Card className="bg-white/95 backdrop-blur-sm border-0 shadow-2xl p-6 rounded-2xl max-w-5xl mx-auto">
+      <form onSubmit={handleSearch}>
+        {/* All fields in one horizontal row */}
+        <div className="flex flex-col lg:flex-row gap-3 items-end">
+          {/* From */}
+          <div className="flex-1 relative">
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">From</label>
+            <input
+              ref={departureInputRef}
+              type="text"
+              placeholder="City or airport"
+              value={search.departure}
+              onChange={handleDepartureChange}
+              onFocus={() => setShowDepartureDropdown(true)}
+              className="w-full bg-white text-gray-900 rounded-lg px-4 py-3 border border-gray-300 focus:border-[#1E3A5F] focus:ring-2 focus:ring-[#1E3A5F]/20 focus:outline-none text-sm"
+              required
+            />
+            {showDepartureDropdown && departureAirports.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                {departureAirports.map((airport, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => selectDepartureAirport(airport)}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-900 text-sm border-b border-gray-100 last:border-b-0"
+                  >
+                    <span className="font-semibold">{airport.code}</span> - {airport.city}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-        {/* Departure with Autocomplete */}
-        <div className="lg:col-span-1 relative">
-          <label className="block text-sm font-medium text-slate-300 mb-2">From</label>
-          <input
-            ref={departureInputRef}
-            type="text"
-            placeholder="City or airport code"
-            value={search.departure}
-            onChange={handleDepartureChange}
-            onFocus={() => setShowDepartureDropdown(true)}
-            className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none"
-            required
-          />
-          {showDepartureDropdown && departureAirports.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-slate-700 border border-slate-600 rounded-lg shadow-lg z-10">
-              {departureAirports.map((airport, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => selectDepartureAirport(airport)}
-                  className="w-full text-left px-3 py-2 hover:bg-slate-600 text-white text-sm"
-                >
-                  {airport.code} - {airport.city}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+          {/* To */}
+          <div className="flex-1 relative">
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">To</label>
+            <input
+              ref={arrivalInputRef}
+              type="text"
+              placeholder="City or airport"
+              value={search.arrival}
+              onChange={handleArrivalChange}
+              onFocus={() => setShowArrivalDropdown(true)}
+              className="w-full bg-white text-gray-900 rounded-lg px-4 py-3 border border-gray-300 focus:border-[#1E3A5F] focus:ring-2 focus:ring-[#1E3A5F]/20 focus:outline-none text-sm"
+              required
+            />
+            {showArrivalDropdown && arrivalAirports.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+                {arrivalAirports.map((airport, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => selectArrivalAirport(airport)}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-900 text-sm border-b border-gray-100 last:border-b-0"
+                  >
+                    <span className="font-semibold">{airport.code}</span> - {airport.city}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
-        {/* Arrival with Autocomplete */}
-        <div className="lg:col-span-1 relative">
-          <label className="block text-sm font-medium text-slate-300 mb-2">To</label>
-          <input
-            ref={arrivalInputRef}
-            type="text"
-            placeholder="City or airport code"
-            value={search.arrival}
-            onChange={handleArrivalChange}
-            onFocus={() => setShowArrivalDropdown(true)}
-            className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none"
-            required
-          />
-          {showArrivalDropdown && arrivalAirports.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-slate-700 border border-slate-600 rounded-lg shadow-lg z-10">
-              {arrivalAirports.map((airport, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => selectArrivalAirport(airport)}
-                  className="w-full text-left px-3 py-2 hover:bg-slate-600 text-white text-sm"
-                >
-                  {airport.code} - {airport.city}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Departure Date */}
-        <div className="lg:col-span-1">
-          <label className="block text-sm font-medium text-slate-300 mb-2">Depart</label>
-          <input
-            type="date"
-            value={search.departureDate}
-            onChange={(e) => setSearch({ ...search, departureDate: e.target.value })}
-            className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none"
-            required
-          />
-        </div>
-
-        {/* Passengers */}
-        <div className="lg:col-span-1">
-          <label className="block text-sm font-medium text-slate-300 mb-2">Passengers</label>
-          <select
-            value={search.passengers}
-            onChange={(e) => setSearch({ ...search, passengers: parseInt(e.target.value) })}
-            className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none"
-          >
-            {[1, 2, 3, 4, 5, 6].map((num) => (
-              <option key={num} value={num}>{num} {num === 1 ? 'Passenger' : 'Passengers'}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Return Date (if round trip) */}
-        {search.tripType === 'round-trip' && (
-          <div className="lg:col-span-1">
-            <label className="block text-sm font-medium text-slate-300 mb-2">Return</label>
+          {/* Depart Date */}
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Depart</label>
             <input
               type="date"
-              value={search.returnDate || ''}
-              onChange={(e) => setSearch({ ...search, returnDate: e.target.value })}
-              className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 border border-slate-600 focus:border-sky-500 focus:outline-none"
+              value={search.departureDate}
+              onChange={(e) => setSearch({ ...search, departureDate: e.target.value })}
+              className="w-full bg-white text-gray-900 rounded-lg px-4 py-3 border border-gray-300 focus:border-[#1E3A5F] focus:ring-2 focus:ring-[#1E3A5F]/20 focus:outline-none text-sm"
+              required
             />
           </div>
-        )}
 
-        {/* Search Button */}
-        <div className="col-span-full lg:col-span-1 flex items-end">
-          <Button
-            type="submit"
-            className="w-full bg-sky-500 hover:bg-sky-600 text-white font-medium py-2"
-          >
-            Search Flights
-          </Button>
+          {/* Return Date (if round trip) */}
+          {search.tripType === 'round-trip' && (
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Return</label>
+              <input
+                type="date"
+                value={search.returnDate || ''}
+                onChange={(e) => setSearch({ ...search, returnDate: e.target.value })}
+                className="w-full bg-white text-gray-900 rounded-lg px-4 py-3 border border-gray-300 focus:border-[#1E3A5F] focus:ring-2 focus:ring-[#1E3A5F]/20 focus:outline-none text-sm"
+              />
+            </div>
+          )}
+
+          {/* Search Button */}
+          <div>
+            <Button
+              type="submit"
+              className="bg-[#1E3A5F] hover:bg-[#2A4A73] text-white px-8 py-3 text-sm font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all whitespace-nowrap"
+            >
+              Search Flights
+            </Button>
+          </div>
+        </div>
+
+        {/* Trip Type and Passengers Row Below */}
+        <div className="flex gap-4 mt-4">
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Trip Type</label>
+            <select
+              value={search.tripType}
+              onChange={(e) => setSearch({ ...search, tripType: e.target.value as any })}
+              className="w-full bg-white text-gray-900 rounded-lg px-4 py-3 border border-gray-300 focus:border-[#1E3A5F] focus:ring-2 focus:ring-[#1E3A5F]/20 focus:outline-none text-sm"
+            >
+              <option value="one-way">One Way</option>
+              <option value="round-trip">Round Trip</option>
+            </select>
+          </div>
+
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Passengers</label>
+            <select
+              value={search.passengers}
+              onChange={(e) => setSearch({ ...search, passengers: parseInt(e.target.value) })}
+              className="w-full bg-white text-gray-900 rounded-lg px-4 py-3 border border-gray-300 focus:border-[#1E3A5F] focus:ring-2 focus:ring-[#1E3A5F]/20 focus:outline-none text-sm"
+            >
+              {[1, 2, 3, 4, 5, 6].map((num) => (
+                <option key={num} value={num}>{num} {num === 1 ? 'Passenger' : 'Passengers'}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </form>
     </Card>
