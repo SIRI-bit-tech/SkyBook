@@ -39,7 +39,7 @@ export default function RegisterPage() {
       // Set role cookie for middleware
       await fetch('/api/auth/set-role', { method: 'POST' });
       
-      router.push('/bookings');
+      router.push('/dashboard');
       router.refresh();
     } catch (err: any) {
       setError(err?.message || 'Failed to create account');
