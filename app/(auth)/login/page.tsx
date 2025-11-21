@@ -28,9 +28,19 @@ export default function LoginPage() {
       // Set role cookie for middleware
       await fetch('/api/auth/set-role', { method: 'POST' });
       
-      // Redirect to the page they were trying to access, or dashboard
-      const redirect = searchParams.get('redirect') || '/dashboard';
-      router.push(redirect);
+      // Validate redirect parameter to prevent open redirect vulnerability
+      const redirectParam = searchParams.get('redirect');
+      let validatedRedirect = '/dashboard';
+      
+      if (redirectParam) {
+        const decoded = decodeURIComponent(redirectParam);
+        // Only allow internal paths: must start with '/' but not '//' and no protocol
+        if (decoded.startsWith('/') && !decoded.startsWith('//') && !decoded.includes('://')) {
+          validatedRedirect = decoded;
+        }
+      }
+      
+      router.push(validatedRedirect);
       router.refresh();
     } catch (err: any) {
       setError(err?.message || 'Invalid credentials');

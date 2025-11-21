@@ -14,8 +14,19 @@ export async function GET(request: NextRequest) {
 
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status');
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const skip = parseInt(searchParams.get('skip') || '0');
+    
+    // Parse and validate pagination parameters
+    const rawLimit = Number(searchParams.get('limit') || '10');
+    const rawSkip = Number(searchParams.get('skip') || '0');
+    
+    // Normalize with safe defaults and clamping
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0 
+      ? Math.min(Math.max(Math.floor(rawLimit), 1), 50) // Clamp between 1 and 50
+      : 10; // Default
+    
+    const skip = Number.isFinite(rawSkip) && rawSkip >= 0 
+      ? Math.max(Math.floor(rawSkip), 0) // Ensure non-negative
+      : 0; // Default
 
     // Build query
     const query: any = { user: session.user.id };

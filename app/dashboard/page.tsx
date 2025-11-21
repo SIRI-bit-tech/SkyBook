@@ -34,20 +34,45 @@ export default function DashboardPage() {
       const response = await fetch(url);
       const data = await response.json();
 
+      // Check HTTP status first
+      if (!response.ok) {
+        const errorMessage = data.error || response.statusText || 'Failed to fetch bookings';
+        console.error('API error:', errorMessage);
+        
+        // Clear stale data on error
+        setBookings([]);
+        setStats({
+          total: 0,
+          confirmed: 0,
+          checkedIn: 0,
+          cancelled: 0,
+        });
+        return;
+      }
+
+      // Process successful response
       if (data.success) {
         setBookings(data.bookings);
-        calculateStats(data.bookings);
+        calculateStats(data.bookings, data.pagination?.total);
       }
     } catch (error) {
       console.error('Failed to fetch bookings:', error);
+      // Clear stale data on exception
+      setBookings([]);
+      setStats({
+        total: 0,
+        confirmed: 0,
+        checkedIn: 0,
+        cancelled: 0,
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const calculateStats = (bookingsList: PopulatedBooking[]) => {
+  const calculateStats = (bookingsList: PopulatedBooking[], paginationTotal?: number) => {
     setStats({
-      total: bookingsList.length,
+      total: paginationTotal !== undefined ? paginationTotal : bookingsList.length,
       confirmed: bookingsList.filter(b => b.status === 'confirmed').length,
       checkedIn: bookingsList.filter(b => b.status === 'checked-in').length,
       cancelled: bookingsList.filter(b => b.status === 'cancelled').length,
