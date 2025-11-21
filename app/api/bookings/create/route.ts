@@ -151,6 +151,37 @@ export async function POST(request: NextRequest) {
       .populate('flight')
       .populate('user', 'firstName lastName email');
 
+    // Generate ticket and send email asynchronously (don't wait for it)
+    if (bookingStatus === 'confirmed') {
+      // Import ticket generation functions
+      const { generateQRCode } = await import('@/lib/qr-generator');
+      const { generateTicketPDF } = await import('@/lib/pdf-ticket-generator');
+      const { sendTicketEmail } = await import('@/lib/email-service');
+      
+      // Generate and send ticket in background
+      Promise.resolve().then(async () => {
+        try {
+          const qrCodeDataUrl = await generateQRCode(bookingReference, booking._id.toString());
+          const pdfBuffer = await generateTicketPDF(populatedBooking);
+          
+          // Update booking with QR code
+          await Booking.findByIdAndUpdate(booking._id, {
+            qrCode: qrCodeDataUrl,
+            ticketUrl: `/api/tickets/download/${bookingReference}`,
+          });
+          
+          // Send email
+          await sendTicketEmail({
+            booking: populatedBooking,
+            pdfBuffer,
+            qrCodeDataUrl,
+          });
+        } catch (error) {
+          console.error('Background ticket generation error:', error);
+        }
+      });
+    }
+
     return NextResponse.json({
       success: true,
       booking: populatedBooking,
