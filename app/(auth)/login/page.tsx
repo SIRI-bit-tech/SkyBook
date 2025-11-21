@@ -33,10 +33,10 @@ export default function LoginPage() {
       let validatedRedirect = '/dashboard';
       
       if (redirectParam) {
-        const decoded = decodeURIComponent(redirectParam);
+        const target = redirectParam;
         // Only allow internal paths: must start with '/' but not '//' and no protocol
-        if (decoded.startsWith('/') && !decoded.startsWith('//') && !decoded.includes('://')) {
-          validatedRedirect = decoded;
+        if (target.startsWith('/') && !target.startsWith('//') && !target.includes('://')) {
+          validatedRedirect = target;
         }
       }
       
