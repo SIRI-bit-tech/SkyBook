@@ -18,9 +18,14 @@ export default function BookingCard({ booking, onCancel, onCheckIn }: BookingCar
   const now = new Date();
   
   const isPast = arrivalTime < now;
+  
+  // Check-in window: 24 hours before departure until 1 hour before departure
+  const checkInOpens = new Date(departureTime.getTime() - 24 * 60 * 60 * 1000);
+  const checkInCloses = new Date(departureTime.getTime() - 1 * 60 * 60 * 1000);
   const canCheckIn = booking.status === 'confirmed' && 
-                     departureTime.getTime() - now.getTime() < 24 * 60 * 60 * 1000 &&
-                     departureTime > now;
+                     now >= checkInOpens && 
+                     now <= checkInCloses;
+  
   const canCancel = booking.status === 'confirmed' && !isPast;
 
   const getStatusColor = () => {
