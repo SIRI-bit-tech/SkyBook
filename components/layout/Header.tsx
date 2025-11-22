@@ -24,7 +24,7 @@ export default function Header() {
           <Link href="/flights/search" className="text-gray-700 hover:text-[#1E3A5F] transition font-medium">
             Flights
           </Link>
-          <Link href="/dashboard/bookings" className="text-gray-700 hover:text-[#1E3A5F] transition font-medium">
+          <Link href="/bookings" className="text-gray-700 hover:text-[#1E3A5F] transition font-medium">
             My Bookings
           </Link>
           <Link href="/contact" className="text-gray-700 hover:text-[#1E3A5F] transition font-medium">
@@ -60,7 +60,7 @@ export default function Header() {
               Flights
             </Link>
             <Link 
-              href="/dashboard/bookings" 
+              href="/bookings" 
               className="text-gray-700 hover:text-[#1E3A5F] transition font-medium py-2"
               onClick={closeMobileMenu}
             >

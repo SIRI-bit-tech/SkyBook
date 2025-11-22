@@ -214,19 +214,17 @@ class AmadeusClient {
         {
           headers: {
             Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/vnd.amadeus+json',
           },
           params: {
             keyword,
             subType: 'AIRPORT,CITY',
-            max: 10,
           },
         }
       );
 
       return response.data.data || [];
-    } catch (error) {
-      console.error('Amadeus airport search error:', error);
+    } catch (error: any) {
+      console.error('Amadeus airport search error:', error.response?.data || error.message);
       throw error;
     }
   }
@@ -254,6 +252,41 @@ class AmadeusClient {
       return response.data.data?.[0] || null;
     } catch (error) {
       console.error('Amadeus airline data error:', error);
+      throw error;
+    }
+  }
+
+  async getAllAirlines(): Promise<any[]> {
+    try {
+      const token = await this.authenticate();
+      const { baseUrl } = this.getCredentials();
+
+      // Amadeus doesn't have a "get all airlines" endpoint
+      // So we'll fetch data for major airline codes
+      const majorAirlineCodes = [
+        'AA', 'DL', 'UA', 'WN', 'B6', // US carriers
+        'BA', 'LH', 'AF', 'KL', 'IB', // European carriers
+        'EK', 'QR', 'EY', 'TK', // Middle East carriers
+        'SQ', 'CX', 'JL', 'NH', 'QF', // Asia-Pacific carriers
+        'AC', 'AM', 'LA', 'AV', // Americas carriers
+      ];
+
+      const response = await axios.get(
+        `${baseUrl}/v1/reference-data/airlines`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/vnd.amadeus+json',
+          },
+          params: {
+            airlineCodes: majorAirlineCodes.join(','),
+          },
+        }
+      );
+
+      return response.data.data || [];
+    } catch (error) {
+      console.error('Amadeus get all airlines error:', error);
       throw error;
     }
   }

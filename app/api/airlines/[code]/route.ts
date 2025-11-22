@@ -1,35 +1,40 @@
-import { connectToDatabase } from '@/lib/mongodb';
-import { AirlineModel } from '@/models/Airline';
-import { FlightModel } from '@/models/Flight';
 import { NextRequest, NextResponse } from 'next/server';
+import { amadeusClient } from '@/lib/amadeus-client';
 
+/**
+ * Get Airline Details by Code
+ * 
+ * GET /api/airlines/[code]
+ * 
+ * Fetches airline information from Amadeus API
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ code: string }> }
 ) {
   try {
-    await connectToDatabase();
-
     const { code } = await params;
-    const airline = await AirlineModel.findOne({ code: code.toUpperCase() });
+    
+    // Fetch airline data from Amadeus API
+    const airline = await amadeusClient.getAirlineData(code.toUpperCase());
 
     if (!airline) {
-      return NextResponse.json({ error: 'Airline not found' }, { status: 404 });
+      return NextResponse.json({ 
+        error: 'Airline not found',
+        message: `No airline found with code: ${code.toUpperCase()}`
+      }, { status: 404 });
     }
-
-    // Get flights for this airline
-    const flights = await FlightModel.find({ airline: airline._id })
-      .populate('departure.airport')
-      .populate('arrival.airport')
-      .sort({ 'departure.time': 1 });
 
     return NextResponse.json({
       success: true,
       airline,
-      flights,
+      source: 'amadeus-api',
+      note: 'To see flights for this airline, use /api/flights/search with airline filter',
     });
   } catch (error) {
     console.error('[Get Airline Error]', error);
-    return NextResponse.json({ error: 'Failed to fetch airline' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to fetch airline from API' 
+    }, { status: 500 });
   }
 }

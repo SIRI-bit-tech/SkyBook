@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Booking } from '@/models/Booking';
+import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth-server';
 
 export async function POST(
@@ -8,8 +7,6 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectToDatabase();
-    
     const session = await getSession();
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -18,14 +15,19 @@ export async function POST(
     const { id } = await params;
     
     // Fetch booking with flight data
-    const booking = await Booking.findById(id).populate('flight');
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      include: {
+        flight: true,
+      },
+    });
     
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
     // Verify ownership
-    if (booking.user.toString() !== session.user.id) {
+    if (booking.userId !== session.user.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
@@ -38,7 +40,7 @@ export async function POST(
 
     // Check if check-in window is open (24 hours before departure)
     const now = new Date();
-    const departureTime = new Date(booking.flight.departure.time);
+    const departureTime = new Date(booking.flight.departureTime);
     const checkInOpens = new Date(departureTime.getTime() - 24 * 60 * 60 * 1000);
     const checkInCloses = new Date(departureTime.getTime() - 1 * 60 * 60 * 1000); // 1 hour before
 
@@ -55,14 +57,18 @@ export async function POST(
     }
 
     // Update booking status
-    booking.status = 'checked-in';
-    booking.checkedInAt = new Date();
-    await booking.save();
+    const updatedBooking = await prisma.booking.update({
+      where: { id },
+      data: {
+        status: 'checked-in',
+        checkedInAt: new Date(),
+      },
+    });
 
     return NextResponse.json({
       success: true,
       message: 'Checked in successfully',
-      booking,
+      booking: updatedBooking,
     });
 
   } catch (error) {

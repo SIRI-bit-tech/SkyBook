@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Booking } from '@/models/Booking';
+import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth-server';
 
 export async function GET(
@@ -8,8 +7,6 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectToDatabase();
-    
     // Get user session
     const session = await getSession();
     if (!session?.user?.id) {
@@ -19,21 +16,37 @@ export async function GET(
     const { id: bookingId } = await params;
 
     // Find booking and populate related data
-    const booking = await Booking.findById(bookingId)
-      .populate('flight')
-      .populate('user', 'firstName lastName email');
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        flight: {
+          include: {
+            airline: true,
+            departureAirport: true,
+            arrivalAirport: true,
+          },
+        },
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        passengers: {
+          include: {
+            passenger: true,
+          },
+        },
+      },
+    });
 
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
     // Check if user owns this booking or is admin
-    if (!booking.user) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
-    
-    const bookingUserId = (booking.user as any)._id?.toString() ?? booking.user?.toString();
-    if (bookingUserId !== session.user.id && session.user.role !== 'admin') {
+    if (booking.userId !== session.user.id && session.user.role !== 'admin') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -56,8 +69,6 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectToDatabase();
-    
     // Get user session
     const session = await getSession();
     if (!session?.user?.id) {
@@ -68,18 +79,16 @@ export async function PUT(
     const body = await request.json();
 
     // Find booking
-    const booking = await Booking.findById(bookingId);
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+    });
+
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
     // Check if user owns this booking or is admin
-    if (!booking.user) {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 });
-    }
-    
-    const bookingUserId = (booking.user as any)._id?.toString() ?? booking.user?.toString();
-    if (bookingUserId !== session.user.id && session.user.role !== 'admin') {
+    if (booking.userId !== session.user.id && session.user.role !== 'admin') {
       return NextResponse.json({ error: 'Access denied' }, { status: 403 });
     }
 
@@ -114,11 +123,26 @@ export async function PUT(
       }
     }
 
-    const updatedBooking = await Booking.findByIdAndUpdate(
-      bookingId,
-      updates,
-      { new: true }
-    ).populate('flight').populate('user', 'firstName lastName email');
+    const updatedBooking = await prisma.booking.update({
+      where: { id: bookingId },
+      data: updates,
+      include: {
+        flight: {
+          include: {
+            airline: true,
+            departureAirport: true,
+            arrivalAirport: true,
+          },
+        },
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    });
 
     return NextResponse.json({
       success: true,

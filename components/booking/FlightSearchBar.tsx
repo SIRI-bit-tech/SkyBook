@@ -19,6 +19,7 @@ interface Airport {
   code: string;
   name: string;
   city: string;
+  country: string;
 }
 
 export default function FlightSearchBar() {
@@ -47,14 +48,22 @@ export default function FlightSearchBar() {
 
     try {
       const response = await fetch(
-        `${API_ROUTES.AIRPORTS.SEARCH}?query=${encodeURIComponent(query)}`
+        `${API_ROUTES.AIRPORTS.SEARCH}?q=${encodeURIComponent(query)}`
       );
-      const data = await response.json();
+      const result = await response.json();
+
+      // Transform Amadeus API response to match our Airport interface
+      const airports = (result.data || []).map((airport: any) => ({
+        code: airport.iataCode,
+        name: airport.name,
+        city: airport.city,
+        country: airport.country || '',
+      }));
 
       if (type === 'departure') {
-        setDepartureAirports(data.airports || []);
+        setDepartureAirports(airports);
       } else {
-        setArrivalAirports(data.airports || []);
+        setArrivalAirports(airports);
       }
     } catch (error) {
       console.error('Airport search error:', error);
@@ -122,15 +131,24 @@ export default function FlightSearchBar() {
               required
             />
             {showDepartureDropdown && departureAirports.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto">
                 {departureAirports.map((airport, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => selectDepartureAirport(airport)}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-900 text-sm border-b border-gray-100 last:border-b-0"
+                    className="w-full text-left px-4 py-3 hover:bg-gray-100 text-gray-900 text-sm border-b border-gray-100 last:border-b-0"
                   >
-                    <span className="font-semibold">{airport.code}</span> - {airport.city}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold text-[#1E3A5F]">{airport.code}</div>
+                        <div className="text-xs text-gray-600">{airport.name}</div>
+                      </div>
+                      <div className="text-right text-xs text-gray-500">
+                        <div>{airport.city}</div>
+                        <div>{airport.country}</div>
+                      </div>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -154,15 +172,24 @@ export default function FlightSearchBar() {
               required
             />
             {showArrivalDropdown && arrivalAirports.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-64 overflow-y-auto">
                 {arrivalAirports.map((airport, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => selectArrivalAirport(airport)}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-100 text-gray-900 text-sm border-b border-gray-100 last:border-b-0"
+                    className="w-full text-left px-4 py-3 hover:bg-gray-100 text-gray-900 text-sm border-b border-gray-100 last:border-b-0"
                   >
-                    <span className="font-semibold">{airport.code}</span> - {airport.city}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold text-[#1E3A5F]">{airport.code}</div>
+                        <div className="text-xs text-gray-600">{airport.name}</div>
+                      </div>
+                      <div className="text-right text-xs text-gray-500">
+                        <div>{airport.city}</div>
+                        <div>{airport.country}</div>
+                      </div>
+                    </div>
                   </button>
                 ))}
               </div>

@@ -1,9 +1,6 @@
 import { amadeusClient } from '@/lib/amadeus-client';
 import { skyscannerClient } from '@/lib/skyscanner-client';
-import { connectToDatabase } from '@/lib/mongodb';
-import { FlightModel } from '@/models/Flight';
-import { AirportModel } from '@/models/Airport';
-import { AirlineModel } from '@/models/Airline';
+import { prisma } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
@@ -66,49 +63,16 @@ export async function POST(request: NextRequest) {
       console.warn('External API search failed, falling back to database:', externalError);
     }
 
-    // Fallback to database search
+    // No database fallback - all flight data comes from external APIs
+    // If external APIs fail, return empty results with error message
     if (flights.length === 0) {
-      await connectToDatabase();
-
-      const departureAirport = await AirportModel.findOne({
-        $or: [
-          { code: departureCity.toUpperCase() },
-          { city: new RegExp(departureCity, 'i') },
-        ],
+      return NextResponse.json({
+        success: false,
+        flights: [],
+        count: 0,
+        message: 'No flights found. External flight APIs may be unavailable.',
+        sources: [],
       });
-
-      const arrivalAirport = await AirportModel.findOne({
-        $or: [
-          { code: arrivalCity.toUpperCase() },
-          { city: new RegExp(arrivalCity, 'i') },
-        ],
-      });
-
-      if (departureAirport && arrivalAirport) {
-        const startDate = new Date(departureDate);
-        const endDate = new Date(departureDate);
-        endDate.setDate(endDate.getDate() + 1);
-
-        const query: any = {
-          'departure.airport': departureAirport._id,
-          'arrival.airport': arrivalAirport._id,
-          'departure.time': { $gte: startDate, $lt: endDate },
-          status: 'scheduled',
-        };
-
-        const dbFlights = await FlightModel.find(query)
-          .populate('airline')
-          .populate('departure.airport')
-          .populate('arrival.airport')
-          .sort({ 'departure.time': 1 });
-
-        flights.push(
-          ...dbFlights.map((flight: any) => ({
-            source: 'database',
-            ...flight.toObject(),
-          }))
-        );
-      }
     }
 
     // Remove duplicates and sort

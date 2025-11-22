@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Booking } from '@/models/Booking';
+import { prisma } from '@/lib/db';
 import { decryptBookingData } from '@/lib/qr-generator';
 
 export async function POST(request: NextRequest) {
   try {
-    await connectToDatabase();
-    
     const { encryptedData } = await request.json();
 
     if (!encryptedData) {
@@ -27,12 +24,33 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch booking
-    const booking = await Booking.findOne({
-      _id: decryptedData.id,
-      bookingReference: decryptedData.ref,
-    })
-      .populate('flight')
-      .populate('user', 'firstName lastName email');
+    const booking = await prisma.booking.findFirst({
+      where: {
+        id: decryptedData.id,
+        bookingReference: decryptedData.ref,
+      },
+      include: {
+        flight: {
+          include: {
+            airline: true,
+            departureAirport: true,
+            arrivalAirport: true,
+          },
+        },
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        passengers: {
+          include: {
+            passenger: true,
+          },
+        },
+      },
+    });
 
     if (!booking) {
       return NextResponse.json({ 
@@ -53,8 +71,8 @@ export async function POST(request: NextRequest) {
 
     // Check flight validity window
     const now = new Date();
-    const departureTime = new Date(booking.flight.departure.time);
-    const arrivalTime = new Date(booking.flight.arrival.time);
+    const departureTime = new Date(booking.flight.departureTime);
+    const arrivalTime = new Date(booking.flight.arrivalTime);
 
     // Allow verification from 24 hours before departure until 2 hours after arrival
     const validFrom = new Date(departureTime.getTime() - 24 * 60 * 60 * 1000); // 24 hours before departure
@@ -80,22 +98,22 @@ export async function POST(request: NextRequest) {
       booking: {
         bookingReference: booking.bookingReference,
         status: booking.status,
-        passengers: booking.passengers.map((p: any) => ({
-          firstName: p.firstName,
-          lastName: p.lastName,
+        passengers: booking.passengers.map((bp: any) => ({
+          firstName: bp.passenger.firstName,
+          lastName: bp.passenger.lastName,
         })),
         seats: booking.seats,
         flight: {
           flightNumber: booking.flight.flightNumber,
           departure: {
-            airport: booking.flight.departure.airport,
-            time: booking.flight.departure.time,
-            terminal: booking.flight.departure.terminal,
+            airport: booking.flight.departureAirport.code,
+            time: booking.flight.departureTime,
+            terminal: booking.flight.departureTerminal,
           },
           arrival: {
-            airport: booking.flight.arrival.airport,
-            time: booking.flight.arrival.time,
-            terminal: booking.flight.arrival.terminal,
+            airport: booking.flight.arrivalAirport.code,
+            time: booking.flight.arrivalTime,
+            terminal: booking.flight.arrivalTerminal,
           },
         },
       },
@@ -137,14 +155,21 @@ export async function GET(request: NextRequest) {
       }, { status: 400 });
     }
 
-    await connectToDatabase();
-
-    const booking = await Booking.findOne({
-      _id: decryptedData.id,
-      bookingReference: decryptedData.ref,
-    })
-      .populate('flight')
-      .populate('user', 'firstName lastName');
+    const booking = await prisma.booking.findFirst({
+      where: {
+        id: decryptedData.id,
+        bookingReference: decryptedData.ref,
+      },
+      include: {
+        flight: true,
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+    });
 
     if (!booking) {
       return NextResponse.json({ 
@@ -165,8 +190,8 @@ export async function GET(request: NextRequest) {
 
     // Check flight validity window
     const now = new Date();
-    const departureTime = new Date(booking.flight.departure.time);
-    const arrivalTime = new Date(booking.flight.arrival.time);
+    const departureTime = new Date(booking.flight.departureTime);
+    const arrivalTime = new Date(booking.flight.arrivalTime);
 
     const validFrom = new Date(departureTime.getTime() - 24 * 60 * 60 * 1000);
     const validUntil = new Date(arrivalTime.getTime() + 2 * 60 * 60 * 1000);

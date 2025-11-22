@@ -1,0 +1,186 @@
+// This is your Prisma schema file for PostgreSQL
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  name          String?
+  image         String?
+  password      String?
+  firstName     String?
+  lastName      String?
+  phone         String?
+  dateOfBirth   DateTime?
+  passportNumber String?
+  role          String    @default("user")
+  
+  bookings      Booking[]
+  sessions      Session[]
+  accounts      Account[]
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sessions")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+// ============================================
+// REMOVED: Airline, Airport, Flight models
+// ============================================
+// These models have been removed because the app now uses
+// real-time data from Amadeus API instead of database storage.
+//
+// Flight data is captured as a snapshot in the Booking model
+// when a user makes a booking.
+//
+// Benefits:
+// - Always up-to-date flight information
+// - No stale data in database
+// - Smaller database size
+// - No manual data maintenance
+// ============================================
+
+model Passenger {
+  id             String   @id @default(cuid())
+  firstName      String
+  lastName       String
+  dateOfBirth    DateTime
+  passportNumber String
+  nationality    String
+  email          String
+  phone          String
+  
+  bookings       BookingPassenger[]
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("passengers")
+}
+
+model Booking {
+  id               String   @id @default(cuid())
+  bookingReference String   @unique
+  userId           String
+  
+  // Flight snapshot data (captured at booking time from Amadeus API)
+  flightNumber     String
+  airlineCode      String
+  airlineName      String
+  
+  departureAirport String   // IATA code
+  departureCity    String
+  departureTime    DateTime
+  departureTerminal String?
+  
+  arrivalAirport   String   // IATA code
+  arrivalCity      String
+  arrivalTime      DateTime
+  arrivalTerminal  String?
+  
+  aircraft         String?
+  duration         Int      // in minutes
+  
+  seats            String[]
+  totalPrice       Float
+  currency         String   @default("USD")
+  
+  // Add-ons
+  baggage          Int      @default(0)
+  meals            String?
+  specialRequests  String?
+  travelInsurance  Boolean  @default(false)
+  
+  status           String   @default("pending") // pending, confirmed, checked-in, cancelled
+  
+  paymentId        String?
+  qrCode           String?
+  ticketUrl        String?
+  checkedInAt      DateTime?
+  
+  user             User     @relation(fields: [userId], references: [id])
+  payment          Payment?
+  passengers       BookingPassenger[]
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("bookings")
+}
+
+model BookingPassenger {
+  id          String    @id @default(cuid())
+  bookingId   String
+  passengerId String
+  
+  booking     Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  passenger   Passenger @relation(fields: [passengerId], references: [id])
+  
+  createdAt   DateTime  @default(now())
+
+  @@unique([bookingId, passengerId])
+  @@map("booking_passengers")
+}
+
+model Payment {
+  id                String   @id @default(cuid())
+  bookingId         String   @unique
+  amount            Float
+  currency          String   @default("USD")
+  stripePaymentId   String?
+  status            String   @default("pending") // pending, completed, failed, refunded
+  paymentMethod     String?
+  
+  booking           Booking  @relation(fields: [bookingId], references: [id])
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("payments")
+}

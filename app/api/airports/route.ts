@@ -1,34 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { AirportModel } from '@/models/Airport';
+import { amadeusClient } from '@/lib/amadeus-client';
 
+/**
+ * Airport List API - Uses Amadeus API for real-time airport data
+ * 
+ * GET /api/airports?search=london
+ * 
+ * This endpoint now fetches airports directly from Amadeus API
+ * instead of using database seed data.
+ */
 export async function GET(request: NextRequest) {
   try {
-    await connectToDatabase();
-
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '100');
     const search = searchParams.get('search');
 
-    const query: any = {};
-    if (search) {
-      query.$or = [
-        { code: { $regex: search, $options: 'i' } },
-        { name: { $regex: search, $options: 'i' } },
-        { city: { $regex: search, $options: 'i' } },
-      ];
+    if (!search || search.length < 2) {
+      return NextResponse.json(
+        { error: 'Search query must be at least 2 characters' },
+        { status: 400 }
+      );
     }
 
-    const airports = await AirportModel.find(query)
-      .sort({ code: 1 })
-      .limit(limit)
-      .lean();
+    // Fetch airports from Amadeus API
+    const results = await amadeusClient.getAirportData(search);
 
-    return NextResponse.json({ airports });
+    // Transform results to match expected format
+    const airports = results.map((location: any) => ({
+      id: location.id,
+      code: location.iataCode,
+      name: location.name,
+      city: location.address?.cityName || '',
+      country: location.address?.countryName || '',
+      timezone: location.timeZoneOffset || '',
+      type: location.subType, // AIRPORT or CITY
+    }));
+
+    return NextResponse.json({ 
+      airports,
+      count: airports.length,
+      source: 'amadeus-api'
+    });
   } catch (error) {
     console.error('Error fetching airports:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch airports' },
+      { error: 'Failed to fetch airports from API' },
       { status: 500 }
     );
   }

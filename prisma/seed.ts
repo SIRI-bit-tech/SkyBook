@@ -1,0 +1,101 @@
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+
+const prisma = new PrismaClient();
+
+/**
+ * MINIMAL SEED DATA - API-DRIVEN APPROACH
+ * 
+ * This seed file creates ONLY essential data for testing:
+ * - Test user accounts
+ * - No flights, airlines, or airports (comes from Amadeus API)
+ * 
+ * WHY THIS APPROACH?
+ * ==================
+ * Your app now uses REAL DATA from Amadeus API for:
+ * ✅ Flight searches (real-time availability)
+ * ✅ Airport lookups (live airport data)
+ * ✅ Airline information (from flight results)
+ * 
+ * Your database stores ONLY:
+ * ✅ User accounts (authentication)
+ * ✅ User bookings (when someone books a flight)
+ * ✅ Payment records (Stripe transactions)
+ * ✅ Booking history (past trips)
+ * 
+ * BENEFITS:
+ * =========
+ * ✅ Always up-to-date flight data
+ * ✅ Real-time pricing
+ * ✅ Actual flight availability
+ * ✅ No stale data in database
+ * ✅ Smaller database size
+ * ✅ No manual data updates needed
+ */
+
+async function main() {
+  console.log('🌱 Starting minimal database seed...');
+  console.log('📝 Creating test users only (flights come from Amadeus API)\n');
+
+  // ============================================
+  // TEST USERS - For development and testing
+  // ============================================
+  console.log('Creating test users...');
+
+  // Regular test user
+  const testUser = await prisma.user.upsert({
+    where: { email: 'test@skybook.com' },
+    update: {},
+    create: {
+      email: 'test@skybook.com',
+      name: 'Test User',
+      emailVerified: true,
+      role: 'user',
+    },
+  });
+
+  // Admin test user
+  const adminUser = await prisma.user.upsert({
+    where: { email: 'admin@skybook.com' },
+    update: {},
+    create: {
+      email: 'admin@skybook.com',
+      name: 'Admin User',
+      emailVerified: true,
+      role: 'admin',
+    },
+  });
+
+  console.log('✅ Created test users:');
+  console.log(`   - Regular user: ${testUser.email}`);
+  console.log(`   - Admin user: ${adminUser.email}\n`);
+
+  console.log('🎉 Database seeded successfully!\n');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('📌 IMPORTANT: Your app now uses REAL DATA from Amadeus API');
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('');
+  console.log('✈️  Flights:  Fetched from Amadeus API (real-time)');
+  console.log('🏢 Airports: Fetched from Amadeus API (live data)');
+  console.log('🛫 Airlines: Extracted from flight search results');
+  console.log('💾 Database: Stores only user bookings & accounts');
+  console.log('');
+  console.log('🔑 Test Credentials:');
+  console.log('   User:  test@skybook.com');
+  console.log('   Admin: admin@skybook.com');
+  console.log('');
+  console.log('⚙️  Make sure your .env.local has:');
+  console.log('   - AMADEUS_API_KEY');
+  console.log('   - AMADEUS_API_SECRET');
+  console.log('   - DATABASE_URL');
+  console.log('');
+}
+
+main()
+  .catch((e) => {
+    console.error('❌ Error seeding database:', e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

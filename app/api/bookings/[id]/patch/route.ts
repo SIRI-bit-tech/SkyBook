@@ -1,5 +1,4 @@
-import { connectToDatabase } from '@/lib/mongodb';
-import { BookingModel } from '@/models/Booking';
+import { prisma } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function PATCH(
@@ -7,19 +6,30 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectToDatabase();
-
     const { status } = await request.json();
     const { id } = await params;
 
-    const booking = await BookingModel.findByIdAndUpdate(
-      id,
-      { 
+    const booking = await prisma.booking.update({
+      where: { id },
+      data: { 
         status,
         ...(status === 'checked-in' && { checkedInAt: new Date() })
       },
-      { new: true }
-    ).populate('flight').populate('passengers');
+      include: {
+        flight: {
+          include: {
+            airline: true,
+            departureAirport: true,
+            arrivalAirport: true,
+          },
+        },
+        passengers: {
+          include: {
+            passenger: true,
+          },
+        },
+      },
+    });
 
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });

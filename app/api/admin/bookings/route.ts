@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Booking } from '@/models/Booking';
+import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth-server';
 
 export async function GET(request: NextRequest) {
   try {
     await requireAdmin();
-    await connectToDatabase();
 
     const { searchParams } = new URL(request.url);
     
@@ -21,31 +19,60 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const search = searchParams.get('search');
 
-    const query: any = {};
+    const where: any = {};
     if (status && status !== 'all') {
-      query.status = status;
+      where.status = status;
     }
     if (search) {
-      query.bookingReference = { $regex: search, $options: 'i' };
+      where.bookingReference = {
+        contains: search,
+        mode: 'insensitive',
+      };
     }
 
     const skip = (page - 1) * limit;
     const [bookings, total] = await Promise.all([
-      Booking.find(query)
-        .populate('user', 'firstName lastName email')
-        .populate({
-          path: 'flight',
-          populate: [
-            { path: 'airline', select: 'name code logo' },
-            { path: 'departure.airport', select: 'name code city' },
-            { path: 'arrival.airport', select: 'name code city' },
-          ],
-        })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      Booking.countDocuments(query),
+      prisma.booking.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          flight: {
+            include: {
+              airline: {
+                select: {
+                  name: true,
+                  code: true,
+                  logo: true,
+                },
+              },
+              departureAirport: {
+                select: {
+                  name: true,
+                  code: true,
+                  city: true,
+                },
+              },
+              arrivalAirport: {
+                select: {
+                  name: true,
+                  code: true,
+                  city: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.booking.count({ where }),
     ]);
 
     return NextResponse.json({

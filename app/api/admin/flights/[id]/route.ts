@@ -1,93 +1,28 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { FlightModel } from '@/models/Flight';
-import { requireAdmin } from '@/lib/auth-server';
+import { NextResponse } from 'next/server';
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    await requireAdmin();
-    await connectToDatabase();
-
-    const { id } = await context.params;
-    const flight = await FlightModel.findById(id)
-      .populate('airline', 'name code logo')
-      .populate('departure.airport', 'name code city')
-      .populate('arrival.airport', 'name code city')
-      .lean();
-
-    if (!flight) {
-      return NextResponse.json({ error: 'Flight not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({ flight });
-  } catch (error) {
-    console.error('Error fetching flight:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch flight' },
-      { status: 500 }
-    );
-  }
+/**
+ * Admin Flight Management - DISABLED
+ * 
+ * Flight data now comes from Amadeus API in real-time.
+ * Individual flight management is not available.
+ */
+export async function GET() {
+  return NextResponse.json({
+    error: 'Flight management disabled',
+    message: 'Flight data comes from Amadeus API. Use /api/flights/search instead.',
+  }, { status: 410 });
 }
 
-export async function PATCH(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    await requireAdmin();
-    await connectToDatabase();
-
-    const { id } = await context.params;
-    const data = await request.json();
-
-    const flight = await FlightModel.findByIdAndUpdate(
-      id,
-      { $set: data },
-      { new: true, runValidators: true }
-    )
-      .populate('airline', 'name code logo')
-      .populate('departure.airport', 'name code city')
-      .populate('arrival.airport', 'name code city')
-      .lean();
-
-    if (!flight) {
-      return NextResponse.json({ error: 'Flight not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({ flight });
-  } catch (error) {
-    console.error('Error updating flight:', error);
-    return NextResponse.json(
-      { error: 'Failed to update flight' },
-      { status: 500 }
-    );
-  }
+export async function PATCH() {
+  return NextResponse.json({
+    error: 'Flight updates disabled',
+    message: 'Cannot update flights. Flight data is managed by Amadeus API.',
+  }, { status: 410 });
 }
 
-export async function DELETE(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  try {
-    await requireAdmin();
-    await connectToDatabase();
-
-    const { id } = await context.params;
-    const flight = await FlightModel.findByIdAndDelete(id);
-
-    if (!flight) {
-      return NextResponse.json({ error: 'Flight not found' }, { status: 404 });
-    }
-
-    return NextResponse.json({ message: 'Flight deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting flight:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete flight' },
-      { status: 500 }
-    );
-  }
+export async function DELETE() {
+  return NextResponse.json({
+    error: 'Flight deletion disabled',
+    message: 'Cannot delete flights. Flight data is managed by Amadeus API.',
+  }, { status: 410 });
 }

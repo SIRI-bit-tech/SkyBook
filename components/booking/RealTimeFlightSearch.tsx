@@ -1,15 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import FlightCard from './FlightCard';
 import AirlineFilter from './AirlineFilter';
+import FlightMapView from './FlightMapView';
 
-interface Flight {
+interface SimplifiedFlight {
   _id: string;
   flightNumber: string;
-  airline: { _id: string; name: string; code: string; logo: string };
+  airline: { _id?: string; name: string; code: string; logo: string };
   departure: { code: string; time: string };
   arrival: { code: string; time: string };
   duration: number;
@@ -18,8 +17,8 @@ interface Flight {
   status: string;
 }
 
-interface Airline {
-  _id: string;
+interface SimplifiedAirline {
+  _id?: string;
   code: string;
   name: string;
   logo: string;
@@ -38,8 +37,8 @@ export default function RealTimeFlightSearch({
   departureDate,
   passengers,
 }: RealTimeFlightSearchProps) {
-  const [flights, setFlights] = useState<Flight[]>([]);
-  const [airlines, setAirlines] = useState<Airline[]>([]);
+  const [flights, setFlights] = useState<SimplifiedFlight[]>([]);
+  const [airlines, setAirlines] = useState<SimplifiedAirline[]>([]);
   const [selectedAirlines, setSelectedAirlines] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
@@ -47,6 +46,7 @@ export default function RealTimeFlightSearch({
     maxPrice: null as number | null,
     maxStops: null as number | null,
   });
+  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     const fetchFlights = async () => {
@@ -73,10 +73,10 @@ export default function RealTimeFlightSearch({
           // Extract unique airlines from flights
           const uniqueAirlines = Array.from(
             new Map(
-              (data.flights || []).map((f: Flight) => [f.airline._id, f.airline])
+              (data.flights || []).map((f: SimplifiedFlight) => [f.airline?._id || f.airline?.code, f.airline])
             ).values()
           );
-          setAirlines(uniqueAirlines as Airline[]);
+          setAirlines(uniqueAirlines as SimplifiedAirline[]);
         }
       } catch (error) {
         console.error('Real-time flight search error:', error);
@@ -115,121 +115,162 @@ export default function RealTimeFlightSearch({
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+    <>
+      {showMap && (
+        <FlightMapView
+          flights={sortedFlights as any}
+          departure={departure}
+          arrival={arrival}
+          onClose={() => setShowMap(false)}
+        />
+      )}
+      
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
       {/* Filters Sidebar */}
       <div className="lg:col-span-1">
-        <Card className="bg-slate-800 border-slate-700 p-4 sticky top-4">
-          <h3 className="font-bold text-white mb-6">Filters & Sort</h3>
+        <div className="bg-white rounded-lg border border-gray-200 p-5 sticky top-4">
+          <h3 className="font-bold text-gray-900 text-lg mb-6">Filter Results</h3>
 
-          {/* Sort Options */}
+          {/* Stops Filter */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-slate-300 mb-3">Sort By</label>
-            <div className="space-y-2">
-              {['price', 'duration', 'stops', 'departure'].map((option) => (
-                <label key={option} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="sort"
-                    value={option}
-                    checked={filters.sortBy === option}
-                    onChange={(e) => setFilters({ ...filters, sortBy: e.target.value as any })}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm text-slate-300 capitalize">{option}</span>
-                </label>
-              ))}
+            <label className="block text-sm font-semibold text-gray-900 mb-3">Stops</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setFilters({ ...filters, maxStops: null })}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  filters.maxStops === null
+                    ? 'bg-blue-50 text-[#1E3A5F] border-2 border-[#1E3A5F]'
+                    : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                }`}
+              >
+                Non-stop
+              </button>
+              <button
+                onClick={() => setFilters({ ...filters, maxStops: 1 })}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  filters.maxStops === 1
+                    ? 'bg-blue-50 text-[#1E3A5F] border-2 border-[#1E3A5F]'
+                    : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                }`}
+              >
+                1 Stop
+              </button>
+              <button
+                onClick={() => setFilters({ ...filters, maxStops: 2 })}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                  filters.maxStops === 2
+                    ? 'bg-blue-50 text-[#1E3A5F] border-2 border-[#1E3A5F]'
+                    : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+                }`}
+              >
+                2+ Stops
+              </button>
             </div>
           </div>
 
           {/* Price Filter */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-slate-300 mb-2">Max Price</label>
-            <input
-              type="number"
-              min="0"
-              step="10"
-              value={filters.maxPrice || ''}
-              onChange={(e) =>
-                setFilters({
-                  ...filters,
-                  maxPrice: e.target.value ? Number(e.target.value) : null,
-                })
-              }
-              placeholder="Any"
-              className="w-full bg-slate-700 text-white rounded-lg px-3 py-2 border border-slate-600"
-            />
-          </div>
-
-          {/* Stops Filter */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-slate-300 mb-3">Stops</label>
+            <label className="block text-sm font-semibold text-gray-900 mb-3">Price</label>
             <div className="space-y-2">
-              {['nonstop', '1stop', '2stops'].map((option) => (
-                <label key={option} className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="stops"
-                    value={option === 'nonstop' ? '0' : option === '1stop' ? '1' : '2'}
-                    checked={
-                      filters.maxStops === null && option === 'nonstop'
-                        ? true
-                        : filters.maxStops === Number(option.match(/\d+/)?.[0] || 0)
-                    }
-                    onChange={(e) =>
-                      setFilters({
-                        ...filters,
-                        maxStops: Number(e.target.value),
-                      })
-                    }
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm text-slate-300 capitalize">
-                    {option === 'nonstop' ? 'Nonstop' : option === '1stop' ? '1 Stop' : '2+ Stops'}
-                  </span>
-                </label>
-              ))}
+              <input
+                type="range"
+                min="0"
+                max="1000"
+                step="50"
+                value={filters.maxPrice || 1000}
+                onChange={(e) =>
+                  setFilters({
+                    ...filters,
+                    maxPrice: Number(e.target.value),
+                  })
+                }
+                className="w-full accent-[#1E3A5F]"
+              />
+              <div className="flex justify-between text-xs text-gray-600">
+                <span>$150</span>
+                <span>${filters.maxPrice || 800}</span>
+              </div>
             </div>
           </div>
 
           {/* Airline Filter */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-3">Airlines</label>
+            <label className="block text-sm font-semibold text-gray-900 mb-3">Airlines</label>
             <AirlineFilter
               airlines={airlines}
               selectedAirlines={selectedAirlines}
               onSelect={setSelectedAirlines}
             />
           </div>
-
-          {/* Real-time indicator */}
-          <div className="mt-6 pt-4 border-t border-slate-700">
-            <div className="flex items-center gap-2 text-xs text-emerald-400">
-              <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
-              Live Updates
-            </div>
-          </div>
-        </Card>
+        </div>
       </div>
 
       {/* Flight Results */}
       <div className="lg:col-span-3">
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-gray-900">Select your departing flight</h2>
+            <button 
+              onClick={() => setShowMap(true)}
+              className="flex items-center gap-2 text-[#1E3A5F] hover:text-[#2A4A73] font-medium"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+              </svg>
+              Map View
+            </button>
+          </div>
+          <p className="text-gray-600 text-sm mb-4">Showing {sortedFlights.length} flights</p>
+          
+          {/* Sort Tabs */}
+          <div className="flex gap-4 border-b border-gray-200 mb-4">
+            <button
+              onClick={() => setFilters({ ...filters, sortBy: 'price' })}
+              className={`pb-3 px-2 font-medium text-sm transition ${
+                filters.sortBy === 'price'
+                  ? 'text-[#1E3A5F] border-b-2 border-[#1E3A5F]'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Price
+            </button>
+            <button
+              onClick={() => setFilters({ ...filters, sortBy: 'duration' })}
+              className={`pb-3 px-2 font-medium text-sm transition ${
+                filters.sortBy === 'duration'
+                  ? 'text-[#1E3A5F] border-b-2 border-[#1E3A5F]'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Duration
+            </button>
+            <button
+              onClick={() => setFilters({ ...filters, sortBy: 'departure' })}
+              className={`pb-3 px-2 font-medium text-sm transition ${
+                filters.sortBy === 'departure'
+                  ? 'text-[#1E3A5F] border-b-2 border-[#1E3A5F]'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Departure
+            </button>
+          </div>
+        </div>
+
         {sortedFlights.length > 0 ? (
-          <div className="space-y-4">
-            <div className="text-slate-300 text-sm">
-              {sortedFlights.length} flights found
-              {selectedAirlines.length > 0 && ` • Filtered by ${selectedAirlines.length} airline(s)`}
-            </div>
-            {sortedFlights.map((flight) => (
-              <FlightCard key={flight._id} flight={flight as any} passengers={passengers} />
+          <div className="space-y-3">
+            {sortedFlights.map((flight, index) => (
+              <FlightCard key={flight._id || `flight-${index}`} flight={flight as any} passengers={passengers} />
             ))}
           </div>
         ) : (
-          <Card className="bg-slate-800 border-slate-700 p-8 text-center">
-            <p className="text-slate-300 text-lg">No flights found matching your criteria.</p>
-            <p className="text-slate-400 text-sm mt-2">Try adjusting your filters or dates.</p>
-          </Card>
+          <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+            <p className="text-gray-700 text-lg">No flights found for your search.</p>
+            <p className="text-gray-500 text-sm mt-2">Try adjusting your filters or dates.</p>
+          </div>
         )}
       </div>
     </div>
+    </>
   );
 }
