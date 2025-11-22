@@ -33,6 +33,13 @@ export default function FlightCard({ flight, passengers }: FlightCardProps) {
     });
   };
 
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -59,15 +66,7 @@ export default function FlightCard({ flight, passengers }: FlightCardProps) {
           <div className="text-left">
             <p className="text-2xl font-bold text-gray-900">{formatTime(departureTime)}</p>
             <p className="text-sm text-gray-600 mt-1">{flight.departure?.code || 'N/A'}</p>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {(flight.stops ?? 0) === 0 ? (
-                <span className="text-emerald-600 font-medium">Non-stop</span>
-              ) : (
-                <span className="text-orange-600 font-medium">
-                  {flight.stops} Stop{(flight.stops ?? 0) > 1 ? 's' : ''} in DFW
-                </span>
-              )}
-            </p>
+            <p className="text-xs text-gray-500 mt-0.5">{formatDate(departureTime)}</p>
           </div>
 
           {/* Duration Arrow */}
@@ -80,14 +79,22 @@ export default function FlightCard({ flight, passengers }: FlightCardProps) {
                 </svg>
               </div>
             </div>
-            <p className="text-xs text-gray-500 mt-1">{(flight.stops ?? 0) === 0 ? 'Nonstop' : ''}</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {(flight.stops ?? 0) === 0 ? (
+                <span className="text-emerald-600 font-medium">Nonstop</span>
+              ) : (
+                <span className="text-orange-600 font-medium">
+                  {flight.stops} Stop{(flight.stops ?? 0) > 1 ? 's' : ''}
+                </span>
+              )}
+            </p>
           </div>
 
           {/* Arrival */}
           <div className="text-right">
             <p className="text-2xl font-bold text-gray-900">{formatTime(arrivalTime)}</p>
             <p className="text-sm text-gray-600 mt-1">{flight.arrival?.code || 'N/A'}</p>
-            <p className="text-xs text-gray-500 mt-0.5">&nbsp;</p>
+            <p className="text-xs text-gray-500 mt-0.5">{formatDate(arrivalTime)}</p>
           </div>
         </div>
 
