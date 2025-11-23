@@ -1,16 +1,13 @@
 import Stripe from "stripe";
-import { connectToDatabase } from "@/lib/mongodb";
-import { PaymentModel } from "@/models/Payment";
+import { prisma } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2024-11-20",
+  apiVersion: "2025-11-17.clover",
 });
 
 export async function POST(request: NextRequest) {
   try {
-    await connectToDatabase();
-
     const { amount, currency, bookingId } = await request.json();
 
     const paymentIntent = await stripe.paymentIntents.create({
@@ -19,12 +16,14 @@ export async function POST(request: NextRequest) {
       metadata: { bookingId },
     });
 
-    const payment = await PaymentModel.create({
-      booking: bookingId,
-      amount,
-      currency,
-      stripePaymentId: paymentIntent.id,
-      status: "pending",
+    const payment = await prisma.payment.create({
+      data: {
+        bookingId,
+        amount,
+        currency: currency || "USD",
+        stripePaymentId: paymentIntent.id,
+        status: "pending",
+      },
     });
 
     return NextResponse.json({

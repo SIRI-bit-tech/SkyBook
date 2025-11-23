@@ -1,58 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Booking } from '@/models/Booking';
-import { FlightModel } from '@/models/Flight';
-import { AirlineModel } from '@/models/Airline';
-import { UserModel } from '@/models/User';
+import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth-server';
 
 export async function GET(request: NextRequest) {
   try {
     await requireAdmin();
-    await connectToDatabase();
 
+    // Fetch stats from database (only user-generated data)
+    // Note: Flights and airlines come from Amadeus API, not database
     const [
       totalBookings,
       confirmedBookings,
-      totalFlights,
-      activeFlights,
-      totalAirlines,
+      cancelledBookings,
       totalUsers,
       revenueData,
     ] = await Promise.all([
-      Booking.countDocuments(),
-      Booking.countDocuments({ status: 'confirmed' }),
-      FlightModel.countDocuments(),
-      FlightModel.countDocuments({ status: 'scheduled' }),
-      AirlineModel.countDocuments({ isActive: true }),
-      UserModel.countDocuments({ role: 'user' }),
-      Booking.aggregate([
-        { $match: { status: { $in: ['confirmed', 'checked-in'] } } },
-        {
-          $group: {
-            _id: null,
-            totalRevenue: { $sum: '$totalPrice' },
-            averagePrice: { $avg: '$totalPrice' },
-          },
-        },
-      ]),
+      prisma.booking.count(),
+      prisma.booking.count({ where: { status: 'confirmed' } }),
+      prisma.booking.count({ where: { status: 'cancelled' } }),
+      prisma.user.count({ where: { role: 'user' } }),
+      prisma.booking.aggregate({
+        where: { status: { in: ['confirmed', 'checked-in'] } },
+        _sum: { totalPrice: true },
+        _avg: { totalPrice: true },
+      }),
     ]);
 
-    const revenue = revenueData[0] || { totalRevenue: 0, averagePrice: 0 };
+    const revenue = {
+      totalRevenue: revenueData._sum.totalPrice || 0,
+      averagePrice: revenueData._avg.totalPrice || 0,
+    };
 
     return NextResponse.json({
       stats: {
         bookings: {
           total: totalBookings,
           confirmed: confirmedBookings,
-          pending: totalBookings - confirmedBookings,
-        },
-        flights: {
-          total: totalFlights,
-          active: activeFlights,
-        },
-        airlines: {
-          total: totalAirlines,
+          cancelled: cancelledBookings,
+          pending: totalBookings - confirmedBookings - cancelledBookings,
         },
         users: {
           total: totalUsers,
@@ -62,6 +47,7 @@ export async function GET(request: NextRequest) {
           average: revenue.averagePrice,
         },
       },
+      note: 'Flight and airline data comes from Amadeus API, not stored in database',
     });
   } catch (error) {
     console.error('Error fetching stats:', error);

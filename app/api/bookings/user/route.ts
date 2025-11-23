@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Booking } from '@/models/Booking';
+import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth-server';
 
 export async function GET(request: NextRequest) {
   try {
-    await connectToDatabase();
-    
     const session = await getSession();
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -28,24 +25,46 @@ export async function GET(request: NextRequest) {
       ? Math.max(Math.floor(rawSkip), 0) // Ensure non-negative
       : 0; // Default
 
-    // Build query
-    const query: any = { user: session.user.id };
+    // Build where clause
+    const where: any = { userId: session.user.id };
     if (status) {
-      query.status = status;
+      where.status = status;
     }
 
     // Fetch bookings with pagination
-    const bookings = await Booking.find(query)
-      .populate('flight')
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .skip(skip);
+    const bookings = await prisma.booking.findMany({
+      where,
+      include: {
+        flight: {
+          include: {
+            airline: true,
+            departureAirport: true,
+            arrivalAirport: true,
+          },
+        },
+        passengers: {
+          include: {
+            passenger: true,
+          },
+        },
+        payment: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      skip,
+    });
 
-    const total = await Booking.countDocuments(query);
+    const total = await prisma.booking.count({ where });
+
+    // Transform to match expected format
+    const transformedBookings = bookings.map((booking: any) => ({
+      ...booking,
+      passengers: booking.passengers.map((bp: any) => bp.passenger),
+    }));
 
     return NextResponse.json({
       success: true,
-      bookings,
+      bookings: transformedBookings,
       pagination: {
         total,
         limit,

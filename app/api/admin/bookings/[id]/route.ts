@@ -1,28 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Booking } from '@/models/Booking';
+import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth-server';
 
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
     await requireAdmin();
-    await connectToDatabase();
 
     const { id } = await context.params;
-    const booking = await Booking.findById(id)
-      .populate('user', 'firstName lastName email phone')
-      .populate({
-        path: 'flight',
-        populate: [
-          { path: 'airline', select: 'name code logo' },
-          { path: 'departure.airport', select: 'name code city' },
-          { path: 'arrival.airport', select: 'name code city' },
-        ],
-      })
-      .lean();
+    const booking = await prisma.booking.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        flight: {
+          include: {
+            airline: {
+              select: {
+                name: true,
+                code: true,
+                logo: true,
+              },
+            },
+            departureAirport: {
+              select: {
+                name: true,
+                code: true,
+                city: true,
+              },
+            },
+            arrivalAirport: {
+              select: {
+                name: true,
+                code: true,
+                city: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
@@ -44,26 +68,48 @@ export async function PATCH(
 ) {
   try {
     await requireAdmin();
-    await connectToDatabase();
 
     const { id } = await context.params;
     const data = await request.json();
 
-    const booking = await Booking.findByIdAndUpdate(
-      id,
-      { $set: data },
-      { new: true, runValidators: true }
-    )
-      .populate('user', 'firstName lastName email phone')
-      .populate({
-        path: 'flight',
-        populate: [
-          { path: 'airline', select: 'name code logo' },
-          { path: 'departure.airport', select: 'name code city' },
-          { path: 'arrival.airport', select: 'name code city' },
-        ],
-      })
-      .lean();
+    const booking = await prisma.booking.update({
+      where: { id },
+      data,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        flight: {
+          include: {
+            airline: {
+              select: {
+                name: true,
+                code: true,
+                logo: true,
+              },
+            },
+            departureAirport: {
+              select: {
+                name: true,
+                code: true,
+                city: true,
+              },
+            },
+            arrivalAirport: {
+              select: {
+                name: true,
+                code: true,
+                city: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });

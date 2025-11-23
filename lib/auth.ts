@@ -1,7 +1,6 @@
 import { betterAuth } from "better-auth";
-import { mongodbAdapter } from "better-auth/adapters/mongodb";
-import mongoose from "mongoose";
-import { connectToDatabase } from "./mongodb";
+import { prismaAdapter } from "better-auth/adapters/prisma";
+import { prisma } from "./db";
 
 // Security: Validate required environment variables at startup
 if (!process.env.BETTER_AUTH_SECRET) {
@@ -21,11 +20,10 @@ if (process.env.BETTER_AUTH_SECRET.length < 32) {
   );
 }
 
-// Ensure MongoDB connection
-connectToDatabase();
-
 export const auth = betterAuth({
-  database: mongodbAdapter(mongoose.connection.db!),
+  database: prismaAdapter(prisma, {
+    provider: "postgresql",
+  }),
   emailAndPassword: {
     enabled: true,
     /**

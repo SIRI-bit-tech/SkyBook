@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { UserModel } from '@/models/User';
-import { connectToDatabase } from '@/lib/mongodb';
+import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 
 export async function POST(request: NextRequest) {
   try {
-    await connectToDatabase();
-
     const { username, email, password, adminCode } = await request.json();
 
     if (!username || !email || !password || !adminCode) {
@@ -37,7 +34,9 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = email.toLowerCase();
 
     // Check if email already exists (using normalized email)
-    const existingEmail = await UserModel.findOne({ email: normalizedEmail });
+    const existingEmail = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
     if (existingEmail) {
       return NextResponse.json(
         { message: 'Email already registered' },
@@ -45,32 +44,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if username already exists
-    const existingUsername = await UserModel.findOne({ username });
-    if (existingUsername) {
-      return NextResponse.json(
-        { message: 'Username already taken' },
-        { status: 400 }
-      );
-    }
-
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Hard-code role as 'admin' since this is admin registration endpoint
-    const user = await UserModel.create({
-      username,
-      email: normalizedEmail,
-      password: hashedPassword,
-      role: 'admin',
+    const user = await prisma.user.create({
+      data: {
+        name: username,
+        email: normalizedEmail,
+        password: hashedPassword,
+        role: 'admin',
+        emailVerified: true, // Auto-verify admin accounts
+      },
     });
 
     return NextResponse.json(
       {
         message: 'Admin account created successfully',
         user: {
-          id: user._id,
+          id: user.id,
           email: user.email,
-          username: user.username,
+          name: user.name,
           role: user.role,
         },
       },

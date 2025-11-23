@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { connectToDatabase } from '@/lib/mongodb';
-import { UserModel } from '@/models/User';
+import { prisma } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,9 +19,10 @@ export async function POST(request: NextRequest) {
     // Normalize email consistently
     const normalizedEmail = email.toLowerCase();
 
-    // Connect to database and check if user exists
-    await connectToDatabase();
-    const user = await UserModel.findOne({ email: normalizedEmail });
+    // Check if user exists
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
 
     // Always call forgetPassword if user exists, but don't reveal if account exists
     if (user) {

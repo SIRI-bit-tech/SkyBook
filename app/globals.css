@@ -234,3 +234,18 @@ a {
     @apply text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 underline;
   }
 }
+
+/* Leaflet Map Styles */
+@import 'leaflet/dist/leaflet.css';
+
+.leaflet-container {
+  font-family: inherit;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 0.5rem;
+}
+
+.leaflet-popup-content {
+  margin: 0.75rem;
+}

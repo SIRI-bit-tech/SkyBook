@@ -1,6 +1,11 @@
-import { connectToDatabase } from "@/lib/mongodb";
-import { FlightModel } from "@/models/Flight";
-import { AirlineModel } from "@/models/Airline";
+import { amadeusClient } from "@/lib/amadeus-client";
+
+/**
+ * Real-Time Flight Search using Amadeus API
+ * 
+ * This module fetches live flight data from Amadeus API instead of database.
+ * All flight information is real-time and up-to-date.
+ */
 
 export interface FlightFilter {
   departure: string;
@@ -13,105 +18,160 @@ export interface FlightFilter {
   departureTimeRange?: { start: string; end: string };
 }
 
+// Helper function to get airline name from code
+const getAirlineName = (code: string): string => {
+  const airlines: Record<string, string> = {
+    'AA': 'American Airlines', 'DL': 'Delta Air Lines', 'UA': 'United Airlines',
+    'WN': 'Southwest Airlines', 'B6': 'JetBlue Airways', 'AS': 'Alaska Airlines',
+    'BA': 'British Airways', 'LH': 'Lufthansa', 'AF': 'Air France',
+    'KL': 'KLM', 'IB': 'Iberia', 'EK': 'Emirates', 'QR': 'Qatar Airways',
+    'EY': 'Etihad Airways', 'TK': 'Turkish Airlines', 'SQ': 'Singapore Airlines',
+    'CX': 'Cathay Pacific', 'JL': 'Japan Airlines', 'NH': 'All Nippon Airways',
+    'QF': 'Qantas', 'AC': 'Air Canada', 'AM': 'Aeromexico', 'LA': 'LATAM',
+    'AV': 'Avianca',
+  };
+  return airlines[code] || code;
+};
+
+// Helper to parse ISO duration (PT2H30M -> 150 minutes)
+const parseDuration = (duration: string): number => {
+  const match = duration.match(/PT(\d+H)?(\d+M)?/);
+  const hours = match?.[1] ? parseInt(match[1]) : 0;
+  const minutes = match?.[2] ? parseInt(match[2]) : 0;
+  return hours * 60 + minutes;
+};
+
 export async function fetchRealTimeFlights(filters: FlightFilter) {
   try {
-    await connectToDatabase();
-
     const {
       departure,
       arrival,
       departureDate,
-      airlines,
+      passengers,
       maxPrice,
       stops,
-      departureTimeRange,
     } = filters;
 
-    const departureCode = departure.split("(")[0].trim().toUpperCase();
-    const arrivalCode = arrival.split("(")[0].trim().toUpperCase();
+    // Extract IATA codes
+    const departureCode = departure.includes("(") 
+      ? departure.split("(")[1].split(")")[0].trim()
+      : departure.trim().toUpperCase();
+    
+    const arrivalCode = arrival.includes("(")
+      ? arrival.split("(")[1].split(")")[0].trim()
+      : arrival.trim().toUpperCase();
 
-    const startDate = new Date(departureDate);
-    startDate.setHours(0, 0, 0, 0);
+    // Fetch flights from Amadeus API
+    const flights = await amadeusClient.searchFlights(
+      departureCode,
+      arrivalCode,
+      departureDate,
+      passengers
+    );
 
-    const endDate = new Date(departureDate);
-    endDate.setHours(23, 59, 59, 999);
+    // Transform Amadeus format to our component format
+    let transformedFlights = flights.map((flight: any) => {
+      const firstSegment = flight.itineraries[0]?.segments[0];
+      const lastSegment = flight.itineraries[0]?.segments[flight.itineraries[0]?.segments.length - 1];
+      const carrierCode = firstSegment?.carrierCode || 'XX';
+      const stops = (flight.itineraries[0]?.segments?.length || 1) - 1;
+      
+      return {
+        _id: flight.id,
+        flightNumber: `${carrierCode}${firstSegment?.number || ''}`,
+        airline: {
+          _id: carrierCode,
+          code: carrierCode,
+          name: getAirlineName(carrierCode),
+          logo: `https://images.kiwi.com/airlines/64/${carrierCode}.png`,
+        },
+        departure: {
+          code: firstSegment?.departure?.iataCode || departureCode,
+          time: firstSegment?.departure?.at || new Date().toISOString(),
+        },
+        arrival: {
+          code: lastSegment?.arrival?.iataCode || arrivalCode,
+          time: lastSegment?.arrival?.at || new Date().toISOString(),
+        },
+        duration: parseDuration(flight.itineraries[0]?.duration || 'PT0M'),
+        stops,
+        price: {
+          economy: parseFloat(flight.price?.total || '0'),
+        },
+        status: 'scheduled',
+      };
+    });
 
-    let query: any = {
-      "departure.code": departureCode,
-      "arrival.code": arrivalCode,
-      "departure.time": { $gte: startDate, $lte: endDate },
-      status: "scheduled",
-    };
-
-    // Filter by airlines if specified
-    if (airlines && airlines.length > 0) {
-      query.airlineCode = { $in: airlines };
-    }
+    // Apply client-side filters
+    let filteredFlights = transformedFlights;
 
     // Filter by max price
     if (maxPrice) {
-      query["price.economy"] = { $lte: maxPrice };
+      filteredFlights = filteredFlights.filter(
+        (flight: any) => flight.price.economy <= maxPrice
+      );
     }
 
     // Filter by stops
     if (stops !== undefined && stops !== null) {
-      query.stops = stops;
+      filteredFlights = filteredFlights.filter(
+        (flight: any) => flight.stops === stops
+      );
     }
 
-    // Filter by departure time range
-    if (departureTimeRange) {
-      const [startHour, startMin] = departureTimeRange.start.split(":").map(Number);
-      const [endHour, endMin] = departureTimeRange.end.split(":").map(Number);
-
-      const startTime = new Date(departureDate);
-      startTime.setHours(startHour, startMin, 0, 0);
-
-      const endTime = new Date(departureDate);
-      endTime.setHours(endHour, endMin, 59, 999);
-
-      query["departure.time"] = {
-        $gte: startTime,
-        $lte: endTime,
-      };
+    // Filter by airlines
+    if (filters.airlines && filters.airlines.length > 0) {
+      filteredFlights = filteredFlights.filter((flight: any) => {
+        return filters.airlines!.includes(flight.airline.code);
+      });
     }
-
-    const flights = await FlightModel.find(query)
-      .populate("airline")
-      .populate("departure.airport")
-      .populate("arrival.airport")
-      .sort({ "departure.time": 1, "price.economy": 1 })
-      .lean();
 
     return {
       success: true,
-      flights: flights || [],
-      count: flights?.length || 0,
+      flights: filteredFlights || [],
+      count: filteredFlights?.length || 0,
+      source: 'amadeus-api',
     };
   } catch (error) {
     console.error("[Real-time Flight Fetch Error]", error);
-    throw new Error("Failed to fetch real-time flights");
+    throw new Error("Failed to fetch real-time flights from API");
   }
 }
 
-// Get available airlines for a route
-export async function getAirlinesForRoute(departure: string, arrival: string) {
+// Get available airlines for a route from Amadeus
+export async function getAirlinesForRoute(departure: string, arrival: string, departureDate: string) {
   try {
-    await connectToDatabase();
+    const departureCode = departure.includes("(")
+      ? departure.split("(")[1].split(")")[0].trim()
+      : departure.trim().toUpperCase();
+    
+    const arrivalCode = arrival.includes("(")
+      ? arrival.split("(")[1].split(")")[0].trim()
+      : arrival.trim().toUpperCase();
 
-    const departureCode = departure.split("(")[0].trim().toUpperCase();
-    const arrivalCode = arrival.split("(")[0].trim().toUpperCase();
+    // Fetch flights to get available airlines
+    const flights = await amadeusClient.searchFlights(
+      departureCode,
+      arrivalCode,
+      departureDate,
+      1
+    );
 
-    const airlines = await FlightModel.distinct("airlineCode", {
-      "departure.code": departureCode,
-      "arrival.code": arrivalCode,
-      status: "scheduled",
+    // Extract unique airline codes
+    const airlineSet = new Set<string>();
+    flights.forEach((flight: any) => {
+      flight.itineraries[0]?.segments?.forEach((segment: any) => {
+        airlineSet.add(segment.carrierCode);
+      });
     });
 
-    const airlineDetails = await AirlineModel.find({
-      code: { $in: airlines },
-    }).lean();
-
-    return airlineDetails || [];
+    // Return formatted airline data
+    return Array.from(airlineSet).map(code => ({
+      _id: code,
+      code,
+      name: getAirlineName(code),
+      logo: `https://images.kiwi.com/airlines/64/${code}.png`,
+    }));
   } catch (error) {
     console.error("[Get Airlines Error]", error);
     return [];

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Booking } from '@/models/Booking';
+import { prisma } from '@/lib/db';
 import { generateTicketPDF } from '@/lib/pdf-ticket-generator';
 import { getSession } from '@/lib/auth-server';
 
@@ -14,8 +13,6 @@ export async function GET(
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
-    await connectToDatabase();
     
     const { bookingReference } = await params;
 
@@ -24,9 +21,30 @@ export async function GET(
     }
 
     // Fetch booking with populated data
-    const booking = await Booking.findOne({ bookingReference })
-      .populate('flight')
-      .populate('user', 'firstName lastName email');
+    const booking = await prisma.booking.findUnique({
+      where: { bookingReference },
+      include: {
+        flight: {
+          include: {
+            airline: true,
+            departureAirport: true,
+            arrivalAirport: true,
+          },
+        },
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        passengers: {
+          include: {
+            passenger: true,
+          },
+        },
+      },
+    });
 
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
@@ -34,7 +52,7 @@ export async function GET(
 
     // Verify the user owns this booking (or is admin)
     const isAdmin = session.user.role === 'admin';
-    if (booking.user._id.toString() !== session.user.id && !isAdmin) {
+    if (booking.userId !== session.user.id && !isAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

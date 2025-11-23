@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
-import { Booking } from '@/models/Booking';
+import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth-server';
 import { generateTicketPDF } from '@/lib/pdf-ticket-generator';
 import { generateQRCode } from '@/lib/qr-generator';
@@ -8,8 +7,6 @@ import { sendTicketEmail } from '@/lib/email-service';
 
 export async function POST(request: NextRequest) {
   try {
-    await connectToDatabase();
-    
     const session = await getSession();
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -22,16 +19,37 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch booking with populated data
-    const booking = await Booking.findById(bookingId)
-      .populate('flight')
-      .populate('user', 'firstName lastName email');
+    const booking = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        flight: {
+          include: {
+            airline: true,
+            departureAirport: true,
+            arrivalAirport: true,
+          },
+        },
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        passengers: {
+          include: {
+            passenger: true,
+          },
+        },
+      },
+    });
 
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
     }
 
     // Verify ownership
-    if (booking.user._id.toString() !== session.user.id) {
+    if (booking.userId !== session.user.id) {
       return NextResponse.json({ error: 'Unauthorized access to booking' }, { status: 403 });
     }
 
@@ -43,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate QR code
-    const qrCodeDataUrl = await generateQRCode(booking.bookingReference, booking._id.toString());
+    const qrCodeDataUrl = await generateQRCode(booking.bookingReference, booking.id);
 
     // Generate PDF ticket
     const pdfBuffer = await generateTicketPDF(booking);
@@ -59,9 +77,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Update booking with QR code and ticket URL
-    await Booking.findByIdAndUpdate(bookingId, {
-      qrCode: qrCodeDataUrl,
-      ticketUrl: `/api/tickets/download/${booking.bookingReference}`,
+    await prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        qrCode: qrCodeDataUrl,
+        ticketUrl: `/api/tickets/download/${booking.bookingReference}`,
+      },
     });
 
     return NextResponse.json({

@@ -53,11 +53,12 @@ export async function requireAdmin() {
   // Additional security: verify role from database
   // This prevents cookie tampering attacks
   try {
-    const { connectToDatabase } = await import('./mongodb');
-    const { UserModel } = await import('@/models/User');
+    const { prisma } = await import('./db');
     
-    await connectToDatabase();
-    const user = await UserModel.findById(session.user.id).select('role');
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { role: true },
+    });
     
     if (!user || user.role !== 'admin') {
       throw new Error('Forbidden: Admin access required');
