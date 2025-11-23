@@ -27,8 +27,8 @@ export async function GET(request: NextRequest) {
       success: true,
       count: results.length,
       data: results,
-      source: 'OpenFlights',
-      note: 'Worldwide airport search powered by OpenFlights database',
+      source: 'OurAirports',
+      note: 'Worldwide airport search with state/region support powered by OurAirports database',
     });
 
   } catch (error: any) {
