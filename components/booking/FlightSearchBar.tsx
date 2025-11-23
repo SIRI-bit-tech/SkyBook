@@ -20,6 +20,7 @@ interface Airport {
   name: string;
   city: string;
   country: string;
+  region?: string;
 }
 
 export default function FlightSearchBar() {
@@ -52,12 +53,13 @@ export default function FlightSearchBar() {
       );
       const result = await response.json();
 
-      // Transform Amadeus API response to match our Airport interface
+      // Transform OurAirports API response to match our Airport interface
       const airports = (result.data || []).map((airport: any) => ({
         code: airport.iataCode,
         name: airport.name,
         city: airport.city,
         country: airport.country || '',
+        region: airport.region || '',
       }));
 
       if (type === 'departure') {
@@ -145,7 +147,7 @@ export default function FlightSearchBar() {
                         <div className="text-xs text-gray-600">{airport.name}</div>
                       </div>
                       <div className="text-right text-xs text-gray-500">
-                        <div>{airport.city}</div>
+                        <div>{airport.city}{airport.region ? `, ${airport.region}` : ''}</div>
                         <div>{airport.country}</div>
                       </div>
                     </div>
@@ -186,7 +188,7 @@ export default function FlightSearchBar() {
                         <div className="text-xs text-gray-600">{airport.name}</div>
                       </div>
                       <div className="text-right text-xs text-gray-500">
-                        <div>{airport.city}</div>
+                        <div>{airport.city}{airport.region ? `, ${airport.region}` : ''}</div>
                         <div>{airport.country}</div>
                       </div>
                     </div>
