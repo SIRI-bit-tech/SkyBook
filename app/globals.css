@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import 'leaflet/dist/leaflet.css';
 
 @theme {
   --font-sans: 'Geist', 'Geist Fallback';
@@ -236,8 +237,6 @@ a {
 }
 
 /* Leaflet Map Styles */
-@import 'leaflet/dist/leaflet.css';
-
 .leaflet-container {
   font-family: inherit;
 }

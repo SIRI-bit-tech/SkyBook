@@ -12,12 +12,14 @@ export async function GET(request: NextRequest) {
       totalBookings,
       confirmedBookings,
       cancelledBookings,
+      checkedInBookings,
       totalUsers,
       revenueData,
     ] = await Promise.all([
       prisma.booking.count(),
       prisma.booking.count({ where: { status: 'confirmed' } }),
       prisma.booking.count({ where: { status: 'cancelled' } }),
+      prisma.booking.count({ where: { status: 'checked-in' } }),
       prisma.user.count({ where: { role: 'user' } }),
       prisma.booking.aggregate({
         where: { status: { in: ['confirmed', 'checked-in'] } },
@@ -37,7 +39,8 @@ export async function GET(request: NextRequest) {
           total: totalBookings,
           confirmed: confirmedBookings,
           cancelled: cancelledBookings,
-          pending: totalBookings - confirmedBookings - cancelledBookings,
+          checkedIn: checkedInBookings,
+          pending: totalBookings - confirmedBookings - cancelledBookings - checkedInBookings,
         },
         users: {
           total: totalUsers,

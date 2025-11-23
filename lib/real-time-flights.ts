@@ -1,10 +1,13 @@
 import { amadeusClient } from "@/lib/amadeus-client";
+import { airlineCache, type CachedAirline } from "@/lib/airline-cache";
 
 /**
  * Real-Time Flight Search using Amadeus API
  * 
  * This module fetches live flight data from Amadeus API instead of database.
  * All flight information is real-time and up-to-date.
+ * 
+ * Now includes dynamic airline caching for comprehensive airline coverage.
  */
 
 export interface FlightFilter {
@@ -14,24 +17,9 @@ export interface FlightFilter {
   passengers: number;
   airlines?: string[];
   maxPrice?: number;
-  stops?: number;
+  maxStops?: number;
   departureTimeRange?: { start: string; end: string };
 }
-
-// Helper function to get airline name from code
-const getAirlineName = (code: string): string => {
-  const airlines: Record<string, string> = {
-    'AA': 'American Airlines', 'DL': 'Delta Air Lines', 'UA': 'United Airlines',
-    'WN': 'Southwest Airlines', 'B6': 'JetBlue Airways', 'AS': 'Alaska Airlines',
-    'BA': 'British Airways', 'LH': 'Lufthansa', 'AF': 'Air France',
-    'KL': 'KLM', 'IB': 'Iberia', 'EK': 'Emirates', 'QR': 'Qatar Airways',
-    'EY': 'Etihad Airways', 'TK': 'Turkish Airlines', 'SQ': 'Singapore Airlines',
-    'CX': 'Cathay Pacific', 'JL': 'Japan Airlines', 'NH': 'All Nippon Airways',
-    'QF': 'Qantas', 'AC': 'Air Canada', 'AM': 'Aeromexico', 'LA': 'LATAM',
-    'AV': 'Avianca',
-  };
-  return airlines[code] || code;
-};
 
 // Helper to parse ISO duration (PT2H30M -> 150 minutes)
 const parseDuration = (duration: string): number => {
@@ -49,7 +37,7 @@ export async function fetchRealTimeFlights(filters: FlightFilter) {
       departureDate,
       passengers,
       maxPrice,
-      stops,
+      maxStops,
     } = filters;
 
     // Extract IATA codes
@@ -69,12 +57,29 @@ export async function fetchRealTimeFlights(filters: FlightFilter) {
       passengers
     );
 
+    // Process airline data dynamically from search results
+    const cachedAirlines = await airlineCache.processFlightResults(flights);
+    const airlineMap = new Map(cachedAirlines.map(a => [a.code, a]));
+
     // Transform Amadeus format to our component format
     let transformedFlights = flights.map((flight: any) => {
-      const firstSegment = flight.itineraries[0]?.segments[0];
-      const lastSegment = flight.itineraries[0]?.segments[flight.itineraries[0]?.segments.length - 1];
+      // Safely extract itinerary and segments with guards
+      const itinerary = flight.itineraries?.[0];
+      const segments = itinerary?.segments ?? [];
+      const firstSegment = segments[0];
+      const lastSegment = segments[segments.length - 1] ?? firstSegment;
+      
       const carrierCode = firstSegment?.carrierCode || 'XX';
-      const stops = (flight.itineraries[0]?.segments?.length || 1) - 1;
+      const stops = Math.max(0, segments.length - 1);
+      
+      // Get airline data from cache
+      const airlineData = airlineMap.get(carrierCode) || {
+        code: carrierCode,
+        name: carrierCode,
+        logo: `https://images.kiwi.com/airlines/64/${carrierCode}.png`,
+        cachedAt: Date.now(),
+        source: 'fallback' as const,
+      };
       
       return {
         _id: flight.id,
@@ -82,8 +87,8 @@ export async function fetchRealTimeFlights(filters: FlightFilter) {
         airline: {
           _id: carrierCode,
           code: carrierCode,
-          name: getAirlineName(carrierCode),
-          logo: `https://images.kiwi.com/airlines/64/${carrierCode}.png`,
+          name: airlineData.name,
+          logo: airlineData.logo,
         },
         departure: {
           code: firstSegment?.departure?.iataCode || departureCode,
@@ -93,7 +98,7 @@ export async function fetchRealTimeFlights(filters: FlightFilter) {
           code: lastSegment?.arrival?.iataCode || arrivalCode,
           time: lastSegment?.arrival?.at || new Date().toISOString(),
         },
-        duration: parseDuration(flight.itineraries[0]?.duration || 'PT0M'),
+        duration: parseDuration(itinerary?.duration || 'PT0M'),
         stops,
         price: {
           economy: parseFloat(flight.price?.total || '0'),
@@ -112,10 +117,10 @@ export async function fetchRealTimeFlights(filters: FlightFilter) {
       );
     }
 
-    // Filter by stops
-    if (stops !== undefined && stops !== null) {
+    // Filter by maximum stops
+    if (maxStops !== undefined && maxStops !== null) {
       filteredFlights = filteredFlights.filter(
-        (flight: any) => flight.stops === stops
+        (flight: any) => flight.stops <= maxStops
       );
     }
 
@@ -138,7 +143,7 @@ export async function fetchRealTimeFlights(filters: FlightFilter) {
   }
 }
 
-// Get available airlines for a route from Amadeus
+// Get available airlines for a route using dynamic caching
 export async function getAirlinesForRoute(departure: string, arrival: string, departureDate: string) {
   try {
     const departureCode = departure.includes("(")
@@ -157,24 +162,27 @@ export async function getAirlinesForRoute(departure: string, arrival: string, de
       1
     );
 
-    // Extract unique airline codes
-    const airlineSet = new Set<string>();
-    flights.forEach((flight: any) => {
-      flight.itineraries[0]?.segments?.forEach((segment: any) => {
-        airlineSet.add(segment.carrierCode);
-      });
-    });
+    // Process airlines dynamically from search results
+    const cachedAirlines = await airlineCache.processFlightResults(flights);
 
     // Return formatted airline data
-    return Array.from(airlineSet).map(code => ({
-      _id: code,
-      code,
-      name: getAirlineName(code),
-      logo: `https://images.kiwi.com/airlines/64/${code}.png`,
+    return cachedAirlines.map(airline => ({
+      _id: airline.code,
+      code: airline.code,
+      name: airline.name,
+      logo: airline.logo,
     }));
   } catch (error) {
     console.error("[Get Airlines Error]", error);
-    return [];
+    
+    // Return cached airlines as fallback
+    const cachedAirlines = airlineCache.getAllCachedAirlines();
+    return cachedAirlines.slice(0, 20).map(airline => ({
+      _id: airline.code,
+      code: airline.code,
+      name: airline.name,
+      logo: airline.logo,
+    }));
   }
 }
 

@@ -7,10 +7,18 @@ import { amadeusClient } from "@/lib/amadeus-client";
  * GET /api/airlines
  * 
  * Returns real-time airline information including:
- * - IATA codes
- * - Official airline names
- * - Business names
- * - Country of registration
+ * - IATA codes (code)
+ * - Airline names (name)
+ * - Airline type (type)
+ * 
+ * Response format:
+ * {
+ *   success: boolean,
+ *   airlines: Array<{ code: string, name: string, type: string }>,
+ *   count: number,
+ *   source: string,
+ *   note: string
+ * }
  * 
  * Data comes directly from Amadeus API, ensuring accuracy.
  */

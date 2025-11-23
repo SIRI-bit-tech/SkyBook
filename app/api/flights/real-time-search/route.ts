@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       passengers: passengers || 1,
       airlines,
       maxPrice,
-      stops: maxStops,
+      maxStops,
     });
 
     // Get available airlines for this route

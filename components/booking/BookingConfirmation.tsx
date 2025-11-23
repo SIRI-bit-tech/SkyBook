@@ -10,19 +10,12 @@ interface BookingConfirmationProps {
 }
 
 export default function BookingConfirmation({ booking }: BookingConfirmationProps) {
-  const departureTime = new Date(booking.flight.departure.time);
-  const arrivalTime = new Date(booking.flight.arrival.time);
+  const departureTime = new Date(booking.departureTime);
+  const arrivalTime = new Date(booking.arrivalTime);
 
   // Helper to safely get airline name
   const getAirlineName = () => {
-    const airline = booking.flight.airline;
-    if (typeof airline === 'string') {
-      return airline;
-    }
-    if (typeof airline === 'object' && airline !== null && 'name' in airline) {
-      return (airline as { name: string }).name;
-    }
-    return 'Airline';
+    return booking.airlineName || 'Airline';
   };
 
   const handleDownloadTicket = () => {
@@ -34,7 +27,7 @@ export default function BookingConfirmation({ booking }: BookingConfirmationProp
     const startDate = departureTime.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
     const endDate = arrivalTime.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
     
-    const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=Flight ${booking.flight.flightNumber}&dates=${startDate}/${endDate}&details=Booking Reference: ${encodeURIComponent(booking.bookingReference)}%0ASeats: ${booking.seats.join(', ')}`;
+    const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=Flight ${booking.flightNumber}&dates=${startDate}/${endDate}&details=Booking Reference: ${encodeURIComponent(booking.bookingReference)}%0ASeats: ${booking.seats.join(', ')}`;
     
     window.open(calendarUrl, '_blank');
   };
@@ -67,7 +60,7 @@ export default function BookingConfirmation({ booking }: BookingConfirmationProp
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-slate-400">Flight</p>
-                  <p className="text-white font-semibold">{booking.flight.flightNumber}</p>
+                  <p className="text-white font-semibold">{booking.flightNumber}</p>
                 </div>
                 <div>
                   <p className="text-sm text-slate-400">Status</p>
@@ -120,28 +113,28 @@ export default function BookingConfirmation({ booking }: BookingConfirmationProp
                 <div>
                   <p className="text-sm text-slate-400">Departure</p>
                   <p className="text-white font-semibold">
-                    {booking.flight.departure.airport}
+                    {booking.departureAirport}
                   </p>
                   <p className="text-sm text-slate-300">
                     {departureTime.toLocaleDateString()} at {departureTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                   </p>
-                  <p className="text-xs text-slate-400">Terminal {booking.flight.departure.terminal}</p>
+                  <p className="text-xs text-slate-400">Terminal {booking.departureTerminal}</p>
                 </div>
                 <div>
                   <p className="text-sm text-slate-400">Arrival</p>
                   <p className="text-white font-semibold">
-                    {booking.flight.arrival.airport}
+                    {booking.arrivalAirport}
                   </p>
                   <p className="text-sm text-slate-300">
                     {arrivalTime.toLocaleDateString()} at {arrivalTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                   </p>
-                  <p className="text-xs text-slate-400">Terminal {booking.flight.arrival.terminal}</p>
+                  <p className="text-xs text-slate-400">Terminal {booking.arrivalTerminal}</p>
                 </div>
               </div>
               
               <div>
                 <p className="text-sm text-slate-400">Duration</p>
-                <p className="text-white">{Math.floor(booking.flight.duration / 60)}h {booking.flight.duration % 60}m</p>
+                <p className="text-white">{Math.floor(booking.duration / 60)}h {booking.duration % 60}m</p>
               </div>
             </div>
           </Card>

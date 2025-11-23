@@ -87,10 +87,67 @@ export interface Booking {
   updatedAt?: Date;
 }
 
+// Junction table type for booking-passenger relationship
+export interface BookingPassenger {
+  id: string;
+  bookingId: string;
+  passengerId: string;
+  passenger: Passenger;
+  createdAt: Date;
+}
+
 // Populated Booking type for when references are populated
-export interface PopulatedBooking extends Omit<Booking, 'user' | 'flight'> {
-  user: User;
-  flight: Flight;
+export interface PopulatedBooking {
+  id: string;
+  bookingReference: string;
+  userId: string;
+  
+  // User relation (when included)
+  user?: {
+    firstName?: string;
+    lastName?: string;
+    email: string;
+    name?: string;
+  };
+  
+  // Flight snapshot data (from Prisma schema)
+  flightNumber: string;
+  airlineCode: string;
+  airlineName: string;
+  
+  departureAirport: string;
+  departureCity: string;
+  departureTime: Date;
+  departureTerminal?: string;
+  
+  arrivalAirport: string;
+  arrivalCity: string;
+  arrivalTime: Date;
+  arrivalTerminal?: string;
+  
+  aircraft?: string;
+  duration: number;
+  
+  seats: string[];
+  totalPrice: number;
+  currency: string;
+  
+  baggage: number;
+  meals?: string;
+  specialRequests?: string;
+  travelInsurance: boolean;
+  
+  status: 'pending' | 'confirmed' | 'checked_in' | 'cancelled';
+  
+  paymentId?: string;
+  qrCode?: string;
+  ticketUrl?: string;
+  checkedInAt?: Date;
+  
+  passengers: BookingPassenger[];
+  
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Payment {

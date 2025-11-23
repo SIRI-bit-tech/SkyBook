@@ -35,13 +35,6 @@ export async function GET(request: NextRequest) {
     const bookings = await prisma.booking.findMany({
       where,
       include: {
-        flight: {
-          include: {
-            airline: true,
-            departureAirport: true,
-            arrivalAirport: true,
-          },
-        },
         passengers: {
           include: {
             passenger: true,

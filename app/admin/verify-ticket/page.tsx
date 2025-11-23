@@ -12,19 +12,13 @@ interface VerificationResult {
     status: string;
     passengers: Array<{ firstName: string; lastName: string }>;
     seats: string[];
-    flight: {
-      flightNumber: string;
-      departure: {
-        airport: string;
-        time: string;
-        terminal: string;
-      };
-      arrival: {
-        airport: string;
-        time: string;
-        terminal: string;
-      };
-    };
+    flightNumber: string;
+    departureAirport: string;
+    arrivalAirport: string;
+    departureTime: string;
+    arrivalTime: string;
+    departureTerminal?: string;
+    arrivalTerminal?: string;
   };
   message?: string;
   error?: string;
@@ -171,23 +165,23 @@ export default function AdminVerifyTicketPage() {
                       <div className="space-y-2">
                         <div className="flex justify-between">
                           <span className="text-slate-400">Flight</span>
-                          <span className="text-white font-semibold">{result.booking.flight.flightNumber}</span>
+                          <span className="text-white font-semibold">{result.booking.flightNumber}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-400">Route</span>
                           <span className="text-white">
-                            {result.booking.flight.departure.airport} → {result.booking.flight.arrival.airport}
+                            {result.booking.departureAirport} → {result.booking.arrivalAirport}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-400">Departure</span>
                           <span className="text-white">
-                            {new Date(result.booking.flight.departure.time).toLocaleString()}
+                            {new Date(result.booking.departureTime).toLocaleString()}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-400">Terminal</span>
-                          <span className="text-white">{result.booking.flight.departure.terminal}</span>
+                          <span className="text-white">{result.booking.departureTerminal}</span>
                         </div>
                       </div>
                     </div>

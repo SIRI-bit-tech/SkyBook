@@ -218,10 +218,13 @@ class AmadeusClient {
           params: {
             keyword,
             subType: 'AIRPORT,CITY',
+            'page[limit]': 20, // Increase results limit
+            'page[offset]': 0,
           },
         }
       );
 
+      console.log(`Airport search for "${keyword}": Found ${response.data.data?.length || 0} results`);
       return response.data.data || [];
     } catch (error: any) {
       console.error('Amadeus airport search error:', error.response?.data || error.message);
@@ -287,6 +290,34 @@ class AmadeusClient {
       return response.data.data || [];
     } catch (error) {
       console.error('Amadeus get all airlines error:', error);
+      throw error;
+    }
+  }
+
+  async getBatchAirlines(codes: string[]): Promise<any[]> {
+    try {
+      const token = await this.authenticate();
+      const { baseUrl } = this.getCredentials();
+
+      // Limit batch size to prevent API limits
+      const limitedCodes = codes.slice(0, 20);
+
+      const response = await axios.get(
+        `${baseUrl}/v1/reference-data/airlines`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/vnd.amadeus+json',
+          },
+          params: {
+            airlineCodes: limitedCodes.join(','),
+          },
+        }
+      );
+
+      return response.data.data || [];
+    } catch (error) {
+      console.error('Amadeus batch airlines error:', error);
       throw error;
     }
   }

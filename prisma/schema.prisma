@@ -10,6 +10,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  user
+  admin
+}
+
+enum BookingStatus {
+  pending
+  confirmed
+  checked_in
+  cancelled
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -22,7 +34,7 @@ model User {
   phone         String?
   dateOfBirth   DateTime?
   passportNumber String?
-  role          String    @default("user")
+  role          Role      @default(user)
   
   bookings      Booking[]
   sessions      Session[]
@@ -137,7 +149,7 @@ model Booking {
   specialRequests  String?
   travelInsurance  Boolean  @default(false)
   
-  status           String   @default("pending") // pending, confirmed, checked-in, cancelled
+  status           BookingStatus @default(pending)
   
   paymentId        String?
   qrCode           String?

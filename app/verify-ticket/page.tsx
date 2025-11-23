@@ -14,19 +14,13 @@ interface VerificationResult {
     status: string;
     passengers: Array<{ firstName: string; lastName: string }>;
     seats: string[];
-    flight: {
-      flightNumber: string;
-      departure: {
-        airport: string;
-        time: string;
-        terminal: string;
-      };
-      arrival: {
-        airport: string;
-        time: string;
-        terminal: string;
-      };
-    };
+    flightNumber: string;
+    departureAirport: string;
+    arrivalAirport: string;
+    departureTime: string;
+    arrivalTime: string;
+    departureTerminal?: string;
+    arrivalTerminal?: string;
   };
   message?: string;
   error?: string;
@@ -118,20 +112,20 @@ export default function VerifyTicketPage() {
                     <div className="space-y-2">
                       <div className="flex justify-between py-2">
                         <span className="text-slate-400">Flight Number</span>
-                        <span className="text-white font-semibold">{result.booking.flight.flightNumber}</span>
+                        <span className="text-white font-semibold">{result.booking.flightNumber}</span>
                       </div>
                       <div className="flex justify-between py-2">
                         <span className="text-slate-400">From</span>
-                        <span className="text-white">{result.booking.flight.departure.airport}</span>
+                        <span className="text-white">{result.booking.departureAirport}</span>
                       </div>
                       <div className="flex justify-between py-2">
                         <span className="text-slate-400">To</span>
-                        <span className="text-white">{result.booking.flight.arrival.airport}</span>
+                        <span className="text-white">{result.booking.arrivalAirport}</span>
                       </div>
                       <div className="flex justify-between py-2">
                         <span className="text-slate-400">Departure</span>
                         <span className="text-white">
-                          {new Date(result.booking.flight.departure.time).toLocaleString()}
+                          {new Date(result.booking.departureTime).toLocaleString()}
                         </span>
                       </div>
                     </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth-server';
+import { PopulatedBooking } from '@/types/global';
 
 export async function POST(request: NextRequest) {
   try {
@@ -91,83 +92,136 @@ export async function POST(request: NextRequest) {
     // Generate booking reference
     const bookingReference = `SB${Date.now().toString().slice(-6)}${Math.random().toString(36).substr(2, 3).toUpperCase()}`;
 
-    // Create passengers first
-    const createdPassengers = await Promise.all(
-      passengers.map((p: any) =>
-        prisma.passenger.create({
-          data: {
-            firstName: p.firstName,
-            lastName: p.lastName,
-            dateOfBirth: new Date(p.dateOfBirth),
-            passportNumber: p.passportNumber,
-            nationality: p.nationality,
-            email: p.email,
-            phone: p.phone,
-          },
-        })
-      )
-    );
+    // Create passengers and booking in a single transaction
+    const { booking, createdPassengers } = await prisma.$transaction(async (tx) => {
+      // Create passengers first
+      const createdPassengers = await Promise.all(
+        passengers.map((p: any) =>
+          tx.passenger.create({
+            data: {
+              firstName: p.firstName,
+              lastName: p.lastName,
+              dateOfBirth: new Date(p.dateOfBirth),
+              passportNumber: p.passportNumber,
+              nationality: p.nationality,
+              email: p.email,
+              phone: p.phone,
+            },
+          })
+        )
+      );
 
-    // Create booking with flight snapshot
-    const booking = await prisma.booking.create({
-      data: {
-        bookingReference,
-        userId: session.user.id,
-        
-        // Flight snapshot from Amadeus API
-        flightNumber: flightData.flightNumber,
-        airlineCode: flightData.airlineCode,
-        airlineName: flightData.airlineName,
-        
-        departureAirport: flightData.departureAirport,
-        departureCity: flightData.departureCity,
-        departureTime: new Date(flightData.departureTime),
-        departureTerminal: flightData.departureTerminal || null,
-        
-        arrivalAirport: flightData.arrivalAirport,
-        arrivalCity: flightData.arrivalCity,
-        arrivalTime: new Date(flightData.arrivalTime),
-        arrivalTerminal: flightData.arrivalTerminal || null,
-        
-        aircraft: flightData.aircraft || null,
-        duration: flightData.duration || 0,
-        
-        seats,
-        totalPrice,
-        currency: flightData.currency || 'USD',
-        
-        baggage: addOns?.baggage || 0,
-        meals: addOns?.meals || null,
-        specialRequests: addOns?.specialRequests || null,
-        travelInsurance: addOns?.travelInsurance || false,
-        
-        paymentId,
-        status: bookingStatus,
-        qrCode: `qr_${bookingReference}`,
-        ticketUrl: `/booking/ticket/${bookingReference}`,
-        
-        passengers: {
-          create: createdPassengers.map((passenger: any) => ({
-            passengerId: passenger.id,
-          })),
-        },
-      },
-      include: {
-        user: {
-          select: {
-            name: true,
-            email: true,
+      // Create booking with flight snapshot
+      const booking = await tx.booking.create({
+        data: {
+          bookingReference,
+          userId: session.user.id,
+          
+          // Flight snapshot from Amadeus API
+          flightNumber: flightData.flightNumber,
+          airlineCode: flightData.airlineCode,
+          airlineName: flightData.airlineName,
+          
+          departureAirport: flightData.departureAirport,
+          departureCity: flightData.departureCity,
+          departureTime: new Date(flightData.departureTime),
+          departureTerminal: flightData.departureTerminal || null,
+          
+          arrivalAirport: flightData.arrivalAirport,
+          arrivalCity: flightData.arrivalCity,
+          arrivalTime: new Date(flightData.arrivalTime),
+          arrivalTerminal: flightData.arrivalTerminal || null,
+          
+          aircraft: flightData.aircraft || null,
+          duration: flightData.duration || 0,
+          
+          seats,
+          totalPrice,
+          currency: flightData.currency || 'USD',
+          
+          baggage: addOns?.baggage || 0,
+          meals: addOns?.meals || null,
+          specialRequests: addOns?.specialRequests || null,
+          travelInsurance: addOns?.travelInsurance || false,
+          
+          paymentId,
+          status: bookingStatus,
+          qrCode: `qr_${bookingReference}`,
+          ticketUrl: `/booking/ticket/${bookingReference}`,
+          
+          passengers: {
+            create: createdPassengers.map((passenger: any) => ({
+              passengerId: passenger.id,
+            })),
           },
         },
-        passengers: {
-          include: {
-            passenger: true,
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+              dateOfBirth: true,
+              passportNumber: true,
+            },
+          },
+          passengers: {
+            include: {
+              passenger: true,
+            },
           },
         },
-      },
+      });
+
+      return { booking, createdPassengers };
     });
 
-    const populatedBooking = booking;
+    // Transform booking to match PopulatedBooking interface (flat structure)
+    const populatedBooking: PopulatedBooking = {
+      id: booking.id,
+      bookingReference: booking.bookingReference,
+      userId: booking.userId,
+      
+      // Flight snapshot data (already flat in Prisma schema)
+      flightNumber: booking.flightNumber,
+      airlineCode: booking.airlineCode,
+      airlineName: booking.airlineName,
+      
+      departureAirport: booking.departureAirport,
+      departureCity: booking.departureCity,
+      departureTime: booking.departureTime,
+      departureTerminal: booking.departureTerminal || undefined,
+      
+      arrivalAirport: booking.arrivalAirport,
+      arrivalCity: booking.arrivalCity,
+      arrivalTime: booking.arrivalTime,
+      arrivalTerminal: booking.arrivalTerminal || undefined,
+      
+      aircraft: booking.aircraft || undefined,
+      duration: booking.duration,
+      
+      seats: booking.seats,
+      totalPrice: booking.totalPrice,
+      currency: booking.currency,
+      
+      baggage: booking.baggage,
+      meals: booking.meals || undefined,
+      specialRequests: booking.specialRequests || undefined,
+      travelInsurance: booking.travelInsurance,
+      
+      status: booking.status as 'pending' | 'confirmed' | 'checked_in' | 'cancelled',
+      
+      paymentId: booking.paymentId || undefined,
+      qrCode: booking.qrCode || undefined,
+      ticketUrl: booking.ticketUrl || undefined,
+      checkedInAt: booking.checkedInAt || undefined,
+      
+      passengers: booking.passengers,
+      createdAt: booking.createdAt,
+      updatedAt: booking.updatedAt,
+    };
 
     // Generate ticket and send email asynchronously (don't wait for it)
     if (bookingStatus === 'confirmed') {
@@ -180,7 +234,25 @@ export async function POST(request: NextRequest) {
       Promise.resolve().then(async () => {
         try {
           const qrCodeDataUrl = await generateQRCode(bookingReference, booking.id);
-          const pdfBuffer = await generateTicketPDF(populatedBooking);
+          // Create adapter for legacy PDF generator that expects nested structure
+          const legacyBooking = {
+            ...populatedBooking,
+            flight: {
+              flightNumber: populatedBooking.flightNumber,
+              departure: {
+                time: populatedBooking.departureTime,
+                airport: populatedBooking.departureAirport,
+                terminal: populatedBooking.departureTerminal,
+              },
+              arrival: {
+                time: populatedBooking.arrivalTime,
+                airport: populatedBooking.arrivalAirport,
+                terminal: populatedBooking.arrivalTerminal,
+              },
+              duration: populatedBooking.duration,
+            },
+          };
+          const pdfBuffer = await generateTicketPDF(legacyBooking as any);
           
           // Update booking with QR code
           await prisma.booking.update({
@@ -193,7 +265,7 @@ export async function POST(request: NextRequest) {
           
           // Send email
           await sendTicketEmail({
-            booking: populatedBooking,
+            booking: legacyBooking as any,
             pdfBuffer,
             qrCodeDataUrl,
           });
