@@ -77,7 +77,7 @@ export default function MyBookingsPage() {
 
   const handleViewTicket = async (bookingId: string) => {
     try {
-      const booking = bookings.find((b) => b._id === bookingId);
+      const booking = bookings.find((b) => b.id === bookingId);
       if (booking?.ticketUrl) {
         window.open(booking.ticketUrl, '_blank');
       } else {
@@ -92,7 +92,7 @@ export default function MyBookingsPage() {
   // Filter bookings based on active tab and search
   const now = new Date();
   const filteredBookings = bookings.filter((booking) => {
-    const departureTime = new Date(booking.flight.departure.time);
+    const departureTime = new Date(booking.departureTime);
     
     // Tab filter
     let tabMatch = false;
@@ -108,20 +108,20 @@ export default function MyBookingsPage() {
     const searchLower = searchQuery.toLowerCase();
     const searchMatch =
       !searchQuery ||
-      booking.flight.departure.airport.toLowerCase().includes(searchLower) ||
-      booking.flight.arrival.airport.toLowerCase().includes(searchLower) ||
-      booking.flight.airline.toLowerCase().includes(searchLower) ||
+      booking.departureAirport.toLowerCase().includes(searchLower) ||
+      booking.arrivalAirport.toLowerCase().includes(searchLower) ||
+      booking.airlineName.toLowerCase().includes(searchLower) ||
       booking.bookingReference.toLowerCase().includes(searchLower);
 
     // Airline filter
     const airlineMatch =
-      selectedAirline === 'all' || booking.flight.airline === selectedAirline;
+      selectedAirline === 'all' || booking.airlineName === selectedAirline;
 
     return tabMatch && searchMatch && airlineMatch;
   });
 
   // Get unique airlines for filter
-  const airlines = Array.from(new Set(bookings.map((b) => b.flight.airline)));
+  const airlines = Array.from(new Set(bookings.map((b) => b.airlineName)));
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -226,14 +226,14 @@ export default function MyBookingsPage() {
         ) : (
           <div className="space-y-4">
             {filteredBookings.map((booking) => {
-              const departureTime = new Date(booking.flight.departure.time);
-              const arrivalTime = new Date(booking.flight.arrival.time);
+              const departureTime = new Date(booking.departureTime);
+              const arrivalTime = new Date(booking.arrivalTime);
               const isCheckInOpen = booking.status === 'confirmed';
               const isCheckedIn = booking.status === 'checked-in';
 
               return (
                 <div
-                  key={booking._id}
+                  key={booking.id}
                   className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
@@ -242,14 +242,14 @@ export default function MyBookingsPage() {
                       {/* Airline and Flight Number */}
                       <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 bg-[#1E3A5F] rounded flex items-center justify-center text-white font-bold text-sm">
-                          {booking.flight.airline.substring(0, 2).toUpperCase()}
+                          {booking.airlineCode}
                         </div>
                         <div>
                           <div className="font-semibold text-gray-900">
-                            {booking.flight.airline} • {booking.flight.flightNumber}
+                            {booking.airlineName} • {booking.flightNumber}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {booking.flight.airline} • DL {booking.flight.flightNumber.replace(/\D/g, '')}
+                            {booking.airlineCode} • {booking.flightNumber}
                           </div>
                         </div>
                       </div>
@@ -257,7 +257,7 @@ export default function MyBookingsPage() {
                       {/* Route */}
                       <div className="mb-4">
                         <div className="text-2xl font-bold text-gray-900 mb-1">
-                          {booking.flight.departure.airport} to {booking.flight.arrival.airport}
+                          {booking.departureAirport} to {booking.arrivalAirport}
                         </div>
                       </div>
 
@@ -296,13 +296,13 @@ export default function MyBookingsPage() {
                         {booking.status === 'confirmed'
                           ? 'CONFIRMED'
                           : booking.status === 'checked-in'
-                          ? 'CONFIRMED'
-                          : 'CANCELLED'}
+                          ? 'CHECKED-IN'
+                          : booking.status.toUpperCase()}
                       </span>
 
                       <div className="flex gap-2">
                         <Button
-                          onClick={() => handleManageBooking(booking._id!)}
+                          onClick={() => handleManageBooking(booking.id)}
                           variant="outline"
                           className="border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#E8EEF5]"
                         >
@@ -310,7 +310,7 @@ export default function MyBookingsPage() {
                         </Button>
                         {isCheckInOpen && (
                           <Button
-                            onClick={() => handleCheckIn(booking._id!)}
+                            onClick={() => handleCheckIn(booking.id)}
                             className="bg-[#1E3A5F] hover:bg-[#2A4A73] text-white"
                           >
                             Check-in
@@ -318,7 +318,7 @@ export default function MyBookingsPage() {
                         )}
                         {isCheckedIn && (
                           <Button
-                            onClick={() => handleViewTicket(booking._id!)}
+                            onClick={() => handleViewTicket(booking.id)}
                             className="bg-[#1E3A5F] hover:bg-[#2A4A73] text-white"
                           >
                             View E-ticket

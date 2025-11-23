@@ -8,7 +8,7 @@ export async function POST(request: NextRequest) {
 
     if (!email || !password) {
       return NextResponse.json(
-        { message: 'Email/Username and password required' },
+        { message: 'Email and password required' },
         { status: 400 }
       );
     }
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     // Find user by email with admin role
     const user = await prisma.user.findFirst({
       where: {
-        email: email.toLowerCase(),
+        email: email.trim().toLowerCase(),
         role: 'admin',
       },
     });

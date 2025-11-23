@@ -136,9 +136,9 @@ export default function RealTimeFlightSearch({
             <label className="block text-sm font-semibold text-gray-900 mb-3">Stops</label>
             <div className="flex gap-2">
               <button
-                onClick={() => setFilters({ ...filters, maxStops: null })}
+                onClick={() => setFilters(prev => ({ ...prev, maxStops: 0 }))}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                  filters.maxStops === null
+                  filters.maxStops === 0
                     ? 'bg-blue-50 text-[#1E3A5F] border-2 border-[#1E3A5F]'
                     : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
                 }`}
@@ -146,7 +146,7 @@ export default function RealTimeFlightSearch({
                 Non-stop
               </button>
               <button
-                onClick={() => setFilters({ ...filters, maxStops: 1 })}
+                onClick={() => setFilters(prev => ({ ...prev, maxStops: 1 }))}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                   filters.maxStops === 1
                     ? 'bg-blue-50 text-[#1E3A5F] border-2 border-[#1E3A5F]'
@@ -156,9 +156,9 @@ export default function RealTimeFlightSearch({
                 1 Stop
               </button>
               <button
-                onClick={() => setFilters({ ...filters, maxStops: 2 })}
+                onClick={() => setFilters(prev => ({ ...prev, maxStops: null }))}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                  filters.maxStops === 2
+                  filters.maxStops === null
                     ? 'bg-blue-50 text-[#1E3A5F] border-2 border-[#1E3A5F]'
                     : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
                 }`}
@@ -177,18 +177,18 @@ export default function RealTimeFlightSearch({
                 min="0"
                 max="1000"
                 step="50"
-                value={filters.maxPrice || 1000}
+                value={filters.maxPrice ?? 1000}
                 onChange={(e) =>
-                  setFilters({
-                    ...filters,
+                  setFilters(prev => ({
+                    ...prev,
                     maxPrice: Number(e.target.value),
-                  })
+                  }))
                 }
                 className="w-full accent-[#1E3A5F]"
               />
               <div className="flex justify-between text-xs text-gray-600">
-                <span>$150</span>
-                <span>${filters.maxPrice || 800}</span>
+                <span>$0</span>
+                <span>${filters.maxPrice ?? 1000}</span>
               </div>
             </div>
           </div>
@@ -225,7 +225,7 @@ export default function RealTimeFlightSearch({
           {/* Sort Tabs */}
           <div className="flex gap-4 border-b border-gray-200 mb-4">
             <button
-              onClick={() => setFilters({ ...filters, sortBy: 'price' })}
+              onClick={() => setFilters(prev => ({ ...prev, sortBy: 'price' }))}
               className={`pb-3 px-2 font-medium text-sm transition ${
                 filters.sortBy === 'price'
                   ? 'text-[#1E3A5F] border-b-2 border-[#1E3A5F]'
@@ -235,7 +235,7 @@ export default function RealTimeFlightSearch({
               Price
             </button>
             <button
-              onClick={() => setFilters({ ...filters, sortBy: 'duration' })}
+              onClick={() => setFilters(prev => ({ ...prev, sortBy: 'duration' }))}
               className={`pb-3 px-2 font-medium text-sm transition ${
                 filters.sortBy === 'duration'
                   ? 'text-[#1E3A5F] border-b-2 border-[#1E3A5F]'
@@ -245,7 +245,7 @@ export default function RealTimeFlightSearch({
               Duration
             </button>
             <button
-              onClick={() => setFilters({ ...filters, sortBy: 'departure' })}
+              onClick={() => setFilters(prev => ({ ...prev, sortBy: 'departure' }))}
               className={`pb-3 px-2 font-medium text-sm transition ${
                 filters.sortBy === 'departure'
                   ? 'text-[#1E3A5F] border-b-2 border-[#1E3A5F]'

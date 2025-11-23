@@ -18,13 +18,13 @@ export default function FlightBookingCard({
   onManageBooking,
   onDownloadTicket,
 }: FlightBookingCardProps) {
-  const departureTime = new Date(booking.flight.departure.time);
-  const arrivalTime = new Date(booking.flight.arrival.time);
+  const departureTime = new Date(booking.departureTime);
+  const arrivalTime = new Date(booking.arrivalTime);
   const isCheckInOpen = booking.status === 'confirmed';
   const isCheckedIn = booking.status === 'checked-in';
 
   // Calculate duration in hours and minutes
-  const durationMinutes = booking.flight.duration;
+  const durationMinutes = booking.duration;
   const hours = Math.floor(durationMinutes / 60);
   const minutes = durationMinutes % 60;
 
@@ -39,7 +39,7 @@ export default function FlightBookingCard({
               <Plane className="w-4 h-4 text-[#1E3A5F]" />
             </div>
             <span className="text-sm text-gray-600">
-              {booking.flight.airline} - Flight {booking.flight.flightNumber}
+              {booking.airlineName} - Flight {booking.flightNumber}
             </span>
           </div>
 
@@ -48,7 +48,7 @@ export default function FlightBookingCard({
             <div className="flex items-center gap-4">
               <div>
                 <div className="text-2xl font-bold text-gray-900">
-                  {booking.flight.departure.airport}
+                  {booking.departureAirport}
                 </div>
               </div>
 
@@ -62,7 +62,7 @@ export default function FlightBookingCard({
 
               <div className="text-right">
                 <div className="text-2xl font-bold text-gray-900">
-                  {booking.flight.arrival.airport}
+                  {booking.arrivalAirport}
                 </div>
               </div>
             </div>
@@ -117,7 +117,7 @@ export default function FlightBookingCard({
           <div className="flex flex-wrap gap-3">
             {isCheckInOpen && (
               <Button
-                onClick={() => onCheckIn(booking._id!)}
+                onClick={() => onCheckIn(booking.id)}
                 className="bg-[#1E3A5F] hover:bg-[#2A4A73] text-white"
               >
                 Check-in
@@ -125,14 +125,14 @@ export default function FlightBookingCard({
             )}
             {isCheckedIn && (
               <Button
-                onClick={() => onDownloadTicket(booking._id!)}
+                onClick={() => onDownloadTicket(booking.id)}
                 className="bg-gray-900 hover:bg-gray-800 text-white"
               >
                 Download Ticket
               </Button>
             )}
             <Button
-              onClick={() => onManageBooking(booking._id!)}
+              onClick={() => onManageBooking(booking.id)}
               variant="outline"
               className="border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#E8EEF5]"
             >
@@ -144,7 +144,7 @@ export default function FlightBookingCard({
         {/* Right Section - Destination Image */}
         <div className="lg:w-64 h-48 lg:h-auto relative bg-gradient-to-br from-blue-400 to-blue-600">
           <div className="absolute inset-0 flex items-center justify-center text-white text-4xl font-bold opacity-20">
-            {booking.flight.arrival.airport}
+            {booking.arrivalAirport}
           </div>
         </div>
       </div>

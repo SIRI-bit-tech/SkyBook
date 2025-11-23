@@ -91,83 +91,131 @@ export async function POST(request: NextRequest) {
     // Generate booking reference
     const bookingReference = `SB${Date.now().toString().slice(-6)}${Math.random().toString(36).substr(2, 3).toUpperCase()}`;
 
-    // Create passengers first
-    const createdPassengers = await Promise.all(
-      passengers.map((p: any) =>
-        prisma.passenger.create({
-          data: {
-            firstName: p.firstName,
-            lastName: p.lastName,
-            dateOfBirth: new Date(p.dateOfBirth),
-            passportNumber: p.passportNumber,
-            nationality: p.nationality,
-            email: p.email,
-            phone: p.phone,
-          },
-        })
-      )
-    );
+    // Create passengers and booking in a single transaction
+    const { booking, createdPassengers } = await prisma.$transaction(async (tx) => {
+      // Create passengers first
+      const createdPassengers = await Promise.all(
+        passengers.map((p: any) =>
+          tx.passenger.create({
+            data: {
+              firstName: p.firstName,
+              lastName: p.lastName,
+              dateOfBirth: new Date(p.dateOfBirth),
+              passportNumber: p.passportNumber,
+              nationality: p.nationality,
+              email: p.email,
+              phone: p.phone,
+            },
+          })
+        )
+      );
 
-    // Create booking with flight snapshot
-    const booking = await prisma.booking.create({
-      data: {
-        bookingReference,
-        userId: session.user.id,
-        
-        // Flight snapshot from Amadeus API
-        flightNumber: flightData.flightNumber,
-        airlineCode: flightData.airlineCode,
-        airlineName: flightData.airlineName,
-        
-        departureAirport: flightData.departureAirport,
-        departureCity: flightData.departureCity,
-        departureTime: new Date(flightData.departureTime),
-        departureTerminal: flightData.departureTerminal || null,
-        
-        arrivalAirport: flightData.arrivalAirport,
-        arrivalCity: flightData.arrivalCity,
-        arrivalTime: new Date(flightData.arrivalTime),
-        arrivalTerminal: flightData.arrivalTerminal || null,
-        
-        aircraft: flightData.aircraft || null,
-        duration: flightData.duration || 0,
-        
-        seats,
-        totalPrice,
-        currency: flightData.currency || 'USD',
-        
-        baggage: addOns?.baggage || 0,
-        meals: addOns?.meals || null,
-        specialRequests: addOns?.specialRequests || null,
-        travelInsurance: addOns?.travelInsurance || false,
-        
-        paymentId,
-        status: bookingStatus,
-        qrCode: `qr_${bookingReference}`,
-        ticketUrl: `/booking/ticket/${bookingReference}`,
-        
-        passengers: {
-          create: createdPassengers.map((passenger: any) => ({
-            passengerId: passenger.id,
-          })),
-        },
-      },
-      include: {
-        user: {
-          select: {
-            name: true,
-            email: true,
+      // Create booking with flight snapshot
+      const booking = await tx.booking.create({
+        data: {
+          bookingReference,
+          userId: session.user.id,
+          
+          // Flight snapshot from Amadeus API
+          flightNumber: flightData.flightNumber,
+          airlineCode: flightData.airlineCode,
+          airlineName: flightData.airlineName,
+          
+          departureAirport: flightData.departureAirport,
+          departureCity: flightData.departureCity,
+          departureTime: new Date(flightData.departureTime),
+          departureTerminal: flightData.departureTerminal || null,
+          
+          arrivalAirport: flightData.arrivalAirport,
+          arrivalCity: flightData.arrivalCity,
+          arrivalTime: new Date(flightData.arrivalTime),
+          arrivalTerminal: flightData.arrivalTerminal || null,
+          
+          aircraft: flightData.aircraft || null,
+          duration: flightData.duration || 0,
+          
+          seats,
+          totalPrice,
+          currency: flightData.currency || 'USD',
+          
+          baggage: addOns?.baggage || 0,
+          meals: addOns?.meals || null,
+          specialRequests: addOns?.specialRequests || null,
+          travelInsurance: addOns?.travelInsurance || false,
+          
+          paymentId,
+          status: bookingStatus,
+          qrCode: `qr_${bookingReference}`,
+          ticketUrl: `/booking/ticket/${bookingReference}`,
+          
+          passengers: {
+            create: createdPassengers.map((passenger: any) => ({
+              passengerId: passenger.id,
+            })),
           },
         },
-        passengers: {
-          include: {
-            passenger: true,
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+          passengers: {
+            include: {
+              passenger: true,
+            },
           },
         },
-      },
+      });
+
+      return { booking, createdPassengers };
     });
 
-    const populatedBooking = booking;
+    // Transform booking to match PopulatedBooking interface
+    const populatedBooking = {
+      ...booking,
+      user: {
+        ...booking.user,
+        _id: booking.userId,
+        firstName: booking.user.name?.split(' ')[0] || '',
+        lastName: booking.user.name?.split(' ').slice(1).join(' ') || '',
+        phone: '',
+        dateOfBirth: new Date(),
+        passportNumber: '',
+        role: 'user' as const,
+        savedPassengers: [],
+        paymentMethods: [],
+      },
+      flight: {
+        _id: `flight_${booking.flightNumber}`,
+        flightNumber: booking.flightNumber,
+        airline: booking.airlineCode,
+        departure: {
+          airport: booking.departureAirport,
+          time: booking.departureTime,
+          terminal: booking.departureTerminal || '',
+        },
+        arrival: {
+          airport: booking.arrivalAirport,
+          time: booking.arrivalTime,
+          terminal: booking.arrivalTerminal || '',
+        },
+        aircraft: booking.aircraft || '',
+        duration: booking.duration,
+        status: 'scheduled' as const,
+        seatMap: { rows: 0, columns: [], reserved: [] },
+        availableSeats: 0,
+        price: { economy: booking.totalPrice, business: 0, firstClass: 0 },
+      },
+      addOns: {
+        baggage: booking.baggage,
+        meals: booking.meals || '',
+        specialRequests: booking.specialRequests || '',
+        travelInsurance: booking.travelInsurance,
+        selectedAddOns: [],
+      },
+    };
 
     // Generate ticket and send email asynchronously (don't wait for it)
     if (bookingStatus === 'confirmed') {
@@ -180,7 +228,7 @@ export async function POST(request: NextRequest) {
       Promise.resolve().then(async () => {
         try {
           const qrCodeDataUrl = await generateQRCode(bookingReference, booking.id);
-          const pdfBuffer = await generateTicketPDF(populatedBooking);
+          const pdfBuffer = await generateTicketPDF(populatedBooking as any);
           
           // Update booking with QR code
           await prisma.booking.update({
@@ -193,7 +241,7 @@ export async function POST(request: NextRequest) {
           
           // Send email
           await sendTicketEmail({
-            booking: populatedBooking,
+            booking: populatedBooking as any,
             pdfBuffer,
             qrCodeDataUrl,
           });

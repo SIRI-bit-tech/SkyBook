@@ -42,6 +42,10 @@ async function main() {
   // ============================================
   console.log('Creating test users...');
 
+  // Hash password for test accounts
+  const testPassword = 'password123';
+  const hashedPassword = await bcrypt.hash(testPassword, 12);
+
   // Regular test user
   const testUser = await prisma.user.upsert({
     where: { email: 'test@skybook.com' },
@@ -51,6 +55,7 @@ async function main() {
       name: 'Test User',
       emailVerified: true,
       role: 'user',
+      password: hashedPassword,
     },
   });
 
@@ -63,6 +68,7 @@ async function main() {
       name: 'Admin User',
       emailVerified: true,
       role: 'admin',
+      password: hashedPassword,
     },
   });
 
@@ -81,8 +87,8 @@ async function main() {
   console.log('💾 Database: Stores only user bookings & accounts');
   console.log('');
   console.log('🔑 Test Credentials:');
-  console.log('   User:  test@skybook.com');
-  console.log('   Admin: admin@skybook.com');
+  console.log('   User:  test@skybook.com / password123');
+  console.log('   Admin: admin@skybook.com / password123');
   console.log('');
   console.log('⚙️  Make sure your .env.local has:');
   console.log('   - AMADEUS_API_KEY');

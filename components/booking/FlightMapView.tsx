@@ -76,17 +76,26 @@ export default function FlightMapView({ flights, departure, arrival, onClose }: 
     try {
       setLoading(true);
       
+      // Extract IATA codes from labels (e.g., "New York (JFK)" -> "JFK")
+      const depCode = departure.includes('(') 
+        ? departure.split('(')[1].split(')')[0].trim()
+        : departure.trim().toUpperCase();
+      
+      const arrCode = arrival.includes('(')
+        ? arrival.split('(')[1].split(')')[0].trim()
+        : arrival.trim().toUpperCase();
+      
       // Fetch departure airport data from Amadeus API
-      const depResponse = await fetch(`/api/airports/search?q=${departure}`);
+      const depResponse = await fetch(`/api/airports/search?q=${depCode}`);
       const depData = await depResponse.json();
       
       // Fetch arrival airport data from Amadeus API
-      const arrResponse = await fetch(`/api/airports/search?q=${arrival}`);
+      const arrResponse = await fetch(`/api/airports/search?q=${arrCode}`);
       const arrData = await arrResponse.json();
 
-      // Find exact matches
-      const depAirport = depData.data?.find((a: any) => a.iataCode === departure);
-      const arrAirport = arrData.data?.find((a: any) => a.iataCode === arrival);
+      // Find exact matches using extracted IATA codes
+      const depAirport = depData.data?.find((a: any) => a.iataCode === depCode);
+      const arrAirport = arrData.data?.find((a: any) => a.iataCode === arrCode);
 
       // Set coordinates from API response
       if (depAirport?.geoCode) {

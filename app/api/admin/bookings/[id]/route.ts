@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireAdmin } from '@/lib/auth-server';
+import { Prisma } from '@prisma/client';
 
 export async function GET(
   _request: NextRequest,
@@ -20,31 +21,12 @@ export async function GET(
             email: true,
           },
         },
-        flight: {
+        passengers: {
           include: {
-            airline: {
-              select: {
-                name: true,
-                code: true,
-                logo: true,
-              },
-            },
-            departureAirport: {
-              select: {
-                name: true,
-                code: true,
-                city: true,
-              },
-            },
-            arrivalAirport: {
-              select: {
-                name: true,
-                code: true,
-                city: true,
-              },
-            },
+            passenger: true,
           },
         },
+        payment: true,
       },
     });
 
@@ -72,50 +54,36 @@ export async function PATCH(
     const { id } = await context.params;
     const data = await request.json();
 
-    const booking = await prisma.booking.update({
-      where: { id },
-      data,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        flight: {
-          include: {
-            airline: {
-              select: {
-                name: true,
-                code: true,
-                logo: true,
-              },
-            },
-            departureAirport: {
-              select: {
-                name: true,
-                code: true,
-                city: true,
-              },
-            },
-            arrivalAirport: {
-              select: {
-                name: true,
-                code: true,
-                city: true,
-              },
+    try {
+      const booking = await prisma.booking.update({
+        where: { id },
+        data,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
             },
           },
+          passengers: {
+            include: {
+              passenger: true,
+            },
+          },
+          payment: true,
         },
-      },
-    });
+      });
 
-    if (!booking) {
-      return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+      return NextResponse.json({ booking });
+    } catch (updateError) {
+      // Handle Prisma "record not found" error
+      if (updateError instanceof Prisma.PrismaClientKnownRequestError && updateError.code === 'P2025') {
+        return NextResponse.json({ error: 'Booking not found' }, { status: 404 });
+      }
+      // Re-throw other errors to be caught by outer catch
+      throw updateError;
     }
-
-    return NextResponse.json({ booking });
   } catch (error) {
     console.error('Error updating booking:', error);
     return NextResponse.json(

@@ -30,13 +30,6 @@ export async function POST(request: NextRequest) {
         bookingReference: decryptedData.ref,
       },
       include: {
-        flight: {
-          include: {
-            airline: true,
-            departureAirport: true,
-            arrivalAirport: true,
-          },
-        },
         user: {
           select: {
             firstName: true,
@@ -71,8 +64,8 @@ export async function POST(request: NextRequest) {
 
     // Check flight validity window
     const now = new Date();
-    const departureTime = new Date(booking.flight.departureTime);
-    const arrivalTime = new Date(booking.flight.arrivalTime);
+    const departureTime = new Date(booking.departureTime);
+    const arrivalTime = new Date(booking.arrivalTime);
 
     // Allow verification from 24 hours before departure until 2 hours after arrival
     const validFrom = new Date(departureTime.getTime() - 24 * 60 * 60 * 1000); // 24 hours before departure
@@ -103,19 +96,13 @@ export async function POST(request: NextRequest) {
           lastName: bp.passenger.lastName,
         })),
         seats: booking.seats,
-        flight: {
-          flightNumber: booking.flight.flightNumber,
-          departure: {
-            airport: booking.flight.departureAirport.code,
-            time: booking.flight.departureTime,
-            terminal: booking.flight.departureTerminal,
-          },
-          arrival: {
-            airport: booking.flight.arrivalAirport.code,
-            time: booking.flight.arrivalTime,
-            terminal: booking.flight.arrivalTerminal,
-          },
-        },
+        flightNumber: booking.flightNumber,
+        departureAirport: booking.departureAirport,
+        arrivalAirport: booking.arrivalAirport,
+        departureTime: booking.departureTime,
+        arrivalTime: booking.arrivalTime,
+        departureTerminal: booking.departureTerminal,
+        arrivalTerminal: booking.arrivalTerminal,
       },
       message: 'Ticket verified successfully',
     });
@@ -161,7 +148,6 @@ export async function GET(request: NextRequest) {
         bookingReference: decryptedData.ref,
       },
       include: {
-        flight: true,
         user: {
           select: {
             firstName: true,
@@ -190,8 +176,8 @@ export async function GET(request: NextRequest) {
 
     // Check flight validity window
     const now = new Date();
-    const departureTime = new Date(booking.flight.departureTime);
-    const arrivalTime = new Date(booking.flight.arrivalTime);
+    const departureTime = new Date(booking.departureTime);
+    const arrivalTime = new Date(booking.arrivalTime);
 
     const validFrom = new Date(departureTime.getTime() - 24 * 60 * 60 * 1000);
     const validUntil = new Date(arrivalTime.getTime() + 2 * 60 * 60 * 1000);

@@ -105,11 +105,21 @@ export default function FlightCard({ flight, passengers }: FlightCardProps) {
             <p className="text-3xl font-bold text-gray-900">${totalPrice.toFixed(0)}</p>
             <p className="text-xs text-gray-500">per traveler</p>
           </div>
-          <Link href={`/booking/select-seats?flightId=${flight._id}&passengers=${passengers}`}>
-            <Button className="bg-[#1E3A5F] hover:bg-[#2A4A73] text-white px-8 py-2.5 rounded-lg font-medium">
-              Select
+          {flight._id ? (
+            <Link href={`/booking/select-seats?flightId=${flight._id}&passengers=${passengers}`}>
+              <Button className="bg-[#1E3A5F] hover:bg-[#2A4A73] text-white px-8 py-2.5 rounded-lg font-medium">
+                Select
+              </Button>
+            </Link>
+          ) : (
+            <Button 
+              disabled 
+              className="bg-gray-400 text-gray-600 px-8 py-2.5 rounded-lg font-medium cursor-not-allowed"
+              title="Flight ID not available"
+            >
+              Unavailable
             </Button>
-          </Link>
+          )}
         </div>
       </div>
     </div>

@@ -20,6 +20,9 @@ export async function registerUser(email: string, password: string, firstName: s
       data: {
         email,
         name: `${firstName} ${lastName}`,
+        password: hashedPassword,
+        firstName,
+        lastName,
         emailVerified: false,
       },
     });
@@ -41,8 +44,18 @@ export async function loginUser(email: string, password: string) {
       return { error: "Invalid credentials" };
     }
 
-    // Note: Better Auth handles password verification
-    // This is a simplified version for demonstration
+    // Verify password exists
+    if (!user.password) {
+      return { error: "Invalid credentials" };
+    }
+
+    // Verify password matches
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    
+    if (!isPasswordValid) {
+      return { error: "Invalid credentials" };
+    }
+
     return { success: true, user: { email: user.email, name: user.name } };
   } catch (error) {
     console.error("[Login Error]", error);

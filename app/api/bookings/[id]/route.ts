@@ -19,13 +19,6 @@ export async function GET(
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
-        flight: {
-          include: {
-            airline: true,
-            departureAirport: true,
-            arrivalAirport: true,
-          },
-        },
         user: {
           select: {
             firstName: true,
@@ -123,22 +116,28 @@ export async function PUT(
       }
     }
 
+    // Check if there are any fields to update
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json(
+        { error: 'No updatable fields provided' },
+        { status: 400 }
+      );
+    }
+
     const updatedBooking = await prisma.booking.update({
       where: { id: bookingId },
       data: updates,
       include: {
-        flight: {
-          include: {
-            airline: true,
-            departureAirport: true,
-            arrivalAirport: true,
-          },
-        },
         user: {
           select: {
             firstName: true,
             lastName: true,
             email: true,
+          },
+        },
+        passengers: {
+          include: {
+            passenger: true,
           },
         },
       },
