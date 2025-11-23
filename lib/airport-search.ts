@@ -93,7 +93,14 @@ class AirportSearchService {
       const char = line[i];
       
       if (char === '"') {
-        inQuotes = !inQuotes;
+        if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+          // Handle escaped quote ("" inside quoted field)
+          current += '"';
+          i++; // Skip the next quote
+        } else {
+          // Toggle inQuotes when entering/exiting quoted sections
+          inQuotes = !inQuotes;
+        }
       } else if (char === ',' && !inQuotes) {
         fields.push(current);
         current = '';
