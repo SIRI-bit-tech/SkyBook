@@ -15,6 +15,13 @@ enum Role {
   admin
 }
 
+enum BookingStatus {
+  pending
+  confirmed
+  checked_in
+  cancelled
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -142,7 +149,7 @@ model Booking {
   specialRequests  String?
   travelInsurance  Boolean  @default(false)
   
-  status           String   @default("pending") // pending, confirmed, checked-in, cancelled
+  status           BookingStatus @default(pending)
   
   paymentId        String?
   qrCode           String?

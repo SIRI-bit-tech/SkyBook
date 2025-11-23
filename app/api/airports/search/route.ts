@@ -159,8 +159,8 @@ function getFallbackAirports(query: string): any[] {
     .filter(airport => 
       airport.iataCode.toLowerCase().includes(lowerQuery) ||
       airport.name.toLowerCase().includes(lowerQuery) ||
-      airport.city.toLowerCase().includes(lowerQuery) ||
-      airport.country.toLowerCase().includes(lowerQuery)
+      (airport.city ?? '').toLowerCase().includes(lowerQuery) ||
+      (airport.country ?? '').toLowerCase().includes(lowerQuery)
     )
     .slice(0, 15)
     .map(airport => ({

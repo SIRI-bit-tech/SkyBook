@@ -164,7 +164,6 @@ class AirlineCache {
       
       for (const batch of batches) {
         try {
-          const { amadeusClient } = await import('./amadeus-client');
           const response = await fetch(`/api/airlines/batch`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -173,6 +172,11 @@ class AirlineCache {
           
           if (response.ok) {
             const data = await response.json();
+            
+            // Track which codes were returned by the API
+            const returnedCodes = new Set<string>();
+            
+            // Process airlines returned by API
             data.airlines?.forEach((airline: any) => {
               const cached: CachedAirline = {
                 code: airline.iataCode,
@@ -182,8 +186,39 @@ class AirlineCache {
                 source: 'amadeus',
               };
               
+              returnedCodes.add(airline.iataCode);
               this.cache.set(airline.iataCode, cached);
               results.push(cached);
+            });
+            
+            // Create fallback entries for codes not returned by API
+            batch.forEach(code => {
+              if (!returnedCodes.has(code)) {
+                const fallback: CachedAirline = {
+                  code,
+                  name: code,
+                  logo: `https://images.kiwi.com/airlines/64/${code}.png`,
+                  cachedAt: Date.now(),
+                  source: 'fallback',
+                };
+                
+                this.cache.set(code, fallback);
+                results.push(fallback);
+              }
+            });
+          } else {
+            // API request failed, create fallbacks for entire batch
+            batch.forEach(code => {
+              const fallback: CachedAirline = {
+                code,
+                name: code,
+                logo: `https://images.kiwi.com/airlines/64/${code}.png`,
+                cachedAt: Date.now(),
+                source: 'fallback',
+              };
+              
+              this.cache.set(code, fallback);
+              results.push(fallback);
             });
           }
         } catch (error) {

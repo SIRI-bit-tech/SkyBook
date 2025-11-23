@@ -87,11 +87,28 @@ export interface Booking {
   updatedAt?: Date;
 }
 
+// Junction table type for booking-passenger relationship
+export interface BookingPassenger {
+  id: string;
+  bookingId: string;
+  passengerId: string;
+  passenger: Passenger;
+  createdAt: Date;
+}
+
 // Populated Booking type for when references are populated
 export interface PopulatedBooking {
   id: string;
   bookingReference: string;
   userId: string;
+  
+  // User relation (when included)
+  user?: {
+    firstName?: string;
+    lastName?: string;
+    email: string;
+    name?: string;
+  };
   
   // Flight snapshot data (from Prisma schema)
   flightNumber: string;
@@ -120,14 +137,14 @@ export interface PopulatedBooking {
   specialRequests?: string;
   travelInsurance: boolean;
   
-  status: 'pending' | 'confirmed' | 'checked-in' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'checked_in' | 'cancelled';
   
   paymentId?: string;
   qrCode?: string;
   ticketUrl?: string;
   checkedInAt?: Date;
   
-  passengers: Passenger[];
+  passengers: BookingPassenger[];
   
   createdAt: Date;
   updatedAt: Date;

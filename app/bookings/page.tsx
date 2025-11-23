@@ -229,7 +229,7 @@ export default function MyBookingsPage() {
               const departureTime = new Date(booking.departureTime);
               const arrivalTime = new Date(booking.arrivalTime);
               const isCheckInOpen = booking.status === 'confirmed';
-              const isCheckedIn = booking.status === 'checked-in';
+              const isCheckedIn = booking.status === 'checked_in';
 
               return (
                 <div
@@ -276,7 +276,7 @@ export default function MyBookingsPage() {
                         <div>
                           <div className="text-gray-500 mb-1">Passengers</div>
                           <div className="font-medium text-gray-900">
-                            {booking.passengers.map((p) => `${p.firstName} ${p.lastName}`).join(', ')}
+                            {booking.passengers.map((bp) => `${bp.passenger.firstName} ${bp.passenger.lastName}`).join(', ')}
                           </div>
                         </div>
                       </div>
@@ -288,14 +288,14 @@ export default function MyBookingsPage() {
                         className={`px-4 py-1.5 rounded-full text-sm font-medium w-fit ${
                           booking.status === 'confirmed'
                             ? 'bg-green-100 text-green-700'
-                            : booking.status === 'checked-in'
+                            : booking.status === 'checked_in'
                             ? 'bg-blue-100 text-blue-700'
                             : 'bg-red-100 text-red-700'
                         }`}
                       >
                         {booking.status === 'confirmed'
                           ? 'CONFIRMED'
-                          : booking.status === 'checked-in'
+                          : booking.status === 'checked_in'
                           ? 'CHECKED-IN'
                           : booking.status.toUpperCase()}
                       </span>

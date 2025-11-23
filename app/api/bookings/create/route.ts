@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth-server';
+import { PopulatedBooking } from '@/types/global';
 
 export async function POST(request: NextRequest) {
   try {
@@ -159,6 +160,11 @@ export async function POST(request: NextRequest) {
             select: {
               name: true,
               email: true,
+              firstName: true,
+              lastName: true,
+              phone: true,
+              dateOfBirth: true,
+              passportNumber: true,
             },
           },
           passengers: {
@@ -172,49 +178,49 @@ export async function POST(request: NextRequest) {
       return { booking, createdPassengers };
     });
 
-    // Transform booking to match PopulatedBooking interface
-    const populatedBooking = {
-      ...booking,
-      user: {
-        ...booking.user,
-        _id: booking.userId,
-        firstName: booking.user.name?.split(' ')[0] || '',
-        lastName: booking.user.name?.split(' ').slice(1).join(' ') || '',
-        phone: '',
-        dateOfBirth: new Date(),
-        passportNumber: '',
-        role: 'user' as const,
-        savedPassengers: [],
-        paymentMethods: [],
-      },
-      flight: {
-        _id: `flight_${booking.flightNumber}`,
-        flightNumber: booking.flightNumber,
-        airline: booking.airlineCode,
-        departure: {
-          airport: booking.departureAirport,
-          time: booking.departureTime,
-          terminal: booking.departureTerminal || '',
-        },
-        arrival: {
-          airport: booking.arrivalAirport,
-          time: booking.arrivalTime,
-          terminal: booking.arrivalTerminal || '',
-        },
-        aircraft: booking.aircraft || '',
-        duration: booking.duration,
-        status: 'scheduled' as const,
-        seatMap: { rows: 0, columns: [], reserved: [] },
-        availableSeats: 0,
-        price: { economy: booking.totalPrice, business: 0, firstClass: 0 },
-      },
-      addOns: {
-        baggage: booking.baggage,
-        meals: booking.meals || '',
-        specialRequests: booking.specialRequests || '',
-        travelInsurance: booking.travelInsurance,
-        selectedAddOns: [],
-      },
+    // Transform booking to match PopulatedBooking interface (flat structure)
+    const populatedBooking: PopulatedBooking = {
+      id: booking.id,
+      bookingReference: booking.bookingReference,
+      userId: booking.userId,
+      
+      // Flight snapshot data (already flat in Prisma schema)
+      flightNumber: booking.flightNumber,
+      airlineCode: booking.airlineCode,
+      airlineName: booking.airlineName,
+      
+      departureAirport: booking.departureAirport,
+      departureCity: booking.departureCity,
+      departureTime: booking.departureTime,
+      departureTerminal: booking.departureTerminal || undefined,
+      
+      arrivalAirport: booking.arrivalAirport,
+      arrivalCity: booking.arrivalCity,
+      arrivalTime: booking.arrivalTime,
+      arrivalTerminal: booking.arrivalTerminal || undefined,
+      
+      aircraft: booking.aircraft || undefined,
+      duration: booking.duration,
+      
+      seats: booking.seats,
+      totalPrice: booking.totalPrice,
+      currency: booking.currency,
+      
+      baggage: booking.baggage,
+      meals: booking.meals || undefined,
+      specialRequests: booking.specialRequests || undefined,
+      travelInsurance: booking.travelInsurance,
+      
+      status: booking.status as 'pending' | 'confirmed' | 'checked_in' | 'cancelled',
+      
+      paymentId: booking.paymentId || undefined,
+      qrCode: booking.qrCode || undefined,
+      ticketUrl: booking.ticketUrl || undefined,
+      checkedInAt: booking.checkedInAt || undefined,
+      
+      passengers: booking.passengers,
+      createdAt: booking.createdAt,
+      updatedAt: booking.updatedAt,
     };
 
     // Generate ticket and send email asynchronously (don't wait for it)
@@ -228,7 +234,25 @@ export async function POST(request: NextRequest) {
       Promise.resolve().then(async () => {
         try {
           const qrCodeDataUrl = await generateQRCode(bookingReference, booking.id);
-          const pdfBuffer = await generateTicketPDF(populatedBooking as any);
+          // Create adapter for legacy PDF generator that expects nested structure
+          const legacyBooking = {
+            ...populatedBooking,
+            flight: {
+              flightNumber: populatedBooking.flightNumber,
+              departure: {
+                time: populatedBooking.departureTime,
+                airport: populatedBooking.departureAirport,
+                terminal: populatedBooking.departureTerminal,
+              },
+              arrival: {
+                time: populatedBooking.arrivalTime,
+                airport: populatedBooking.arrivalAirport,
+                terminal: populatedBooking.arrivalTerminal,
+              },
+              duration: populatedBooking.duration,
+            },
+          };
+          const pdfBuffer = await generateTicketPDF(legacyBooking as any);
           
           // Update booking with QR code
           await prisma.booking.update({
@@ -241,7 +265,7 @@ export async function POST(request: NextRequest) {
           
           // Send email
           await sendTicketEmail({
-            booking: populatedBooking as any,
+            booking: legacyBooking as any,
             pdfBuffer,
             qrCodeDataUrl,
           });

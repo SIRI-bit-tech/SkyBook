@@ -20,14 +20,14 @@ export async function sendTicketEmail({ booking, pdfBuffer, qrCodeDataUrl }: Sen
   const recipientEmails = Array.from(
     new Set(
       booking.passengers
-        .map(p => p.email?.trim())
+        .map(bp => bp.passenger.email?.trim())
         .filter((email): email is string => !!email)
     )
   );
 
   // Fallback to booking user email if no passenger emails found
   if (recipientEmails.length === 0) {
-    const userEmail = booking.user.email?.trim();
+    const userEmail = booking.user?.email?.trim();
     if (userEmail) {
       recipientEmails.push(userEmail);
     } else {
@@ -35,14 +35,25 @@ export async function sendTicketEmail({ booking, pdfBuffer, qrCodeDataUrl }: Sen
     }
   }
 
-  const flight = booking.flight;
+  // Create adapter for legacy email template that expects nested flight structure
+  const flight = {
+    flightNumber: booking.flightNumber,
+    departure: {
+      time: booking.departureTime,
+      airport: booking.departureAirport,
+    },
+    arrival: {
+      time: booking.arrivalTime,
+      airport: booking.arrivalAirport,
+    },
+  };
   const departureDate = new Date(flight.departure.time);
   const arrivalDate = new Date(flight.arrival.time);
   
   // Use first passenger for greeting, or user name as fallback
-  const primaryPassenger = booking.passengers[0] || {
-    firstName: booking.user.firstName,
-    lastName: booking.user.lastName,
+  const primaryPassenger = booking.passengers[0]?.passenger || {
+    firstName: booking.user?.firstName || '',
+    lastName: booking.user?.lastName || '',
   };
   
   const emailHtml = `
@@ -222,7 +233,7 @@ export async function sendTicketEmail({ booking, pdfBuffer, qrCodeDataUrl }: Sen
             
             <div class="info-row">
               <span class="info-label">Passenger(s)</span>
-              <span class="info-value">${booking.passengers.map(p => `${p.firstName} ${p.lastName}`).join(', ')}</span>
+              <span class="info-value">${booking.passengers.map(bp => `${bp.passenger.firstName} ${bp.passenger.lastName}`).join(', ')}</span>
             </div>
             
             <div class="info-row">
@@ -253,7 +264,7 @@ export async function sendTicketEmail({ booking, pdfBuffer, qrCodeDataUrl }: Sen
           </div>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${process.env.NEXT_PUBLIC_APP_URL}/booking/confirmation?bookingId=${booking._id}" class="button">
+            <a href="${process.env.NEXT_PUBLIC_APP_URL}/booking/confirmation?bookingId=${booking.id}" class="button">
               View Booking Details
             </a>
           </div>
