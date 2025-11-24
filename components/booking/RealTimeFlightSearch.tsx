@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import FlightCard from './FlightCard';
-import AirlineFilter from './AirlineFilter';
 import FlightMapView from './FlightMapView';
+import AirlineFilterSelector from '@/components/flights/AirlineFilterSelector';
 
 interface SimplifiedFlight {
   _id: string;
@@ -50,23 +50,42 @@ export default function RealTimeFlightSearch({
 
   useEffect(() => {
     const fetchFlights = async () => {
+      // Validate required fields before making API call
+      if (!departure || !arrival || !departureDate) {
+        console.warn('Missing required search parameters:', { departure, arrival, departureDate });
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoading(true);
+        const requestBody = {
+          departure,
+          arrival,
+          departureDate,
+          passengers,
+          airlines: selectedAirlines.length > 0 ? selectedAirlines : undefined,
+          maxPrice: filters.maxPrice,
+          maxStops: filters.maxStops,
+        };
+
+        console.log('Fetching flights with params:', requestBody);
+
         const response = await fetch('/api/flights/real-time-search', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            departure,
-            arrival,
-            departureDate,
-            passengers,
-            airlines: selectedAirlines.length > 0 ? selectedAirlines : undefined,
-            maxPrice: filters.maxPrice,
-            maxStops: filters.maxStops,
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         const data = await response.json();
+        
+        if (!response.ok) {
+          console.error('API error:', data);
+          setFlights([]);
+          setAirlines([]);
+          return;
+        }
+
         if (data.success) {
           setFlights(data.flights || []);
 
@@ -80,6 +99,8 @@ export default function RealTimeFlightSearch({
         }
       } catch (error) {
         console.error('Real-time flight search error:', error);
+        setFlights([]);
+        setAirlines([]);
       } finally {
         setLoading(false);
       }
@@ -106,10 +127,23 @@ export default function RealTimeFlightSearch({
     }
   });
 
+  // Show error if required parameters are missing
+  if (!departure || !arrival || !departureDate) {
+    return (
+      <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+        <p className="text-gray-700 text-lg font-semibold mb-2">Missing Search Parameters</p>
+        <p className="text-gray-500 text-sm">
+          Please provide departure, arrival, and departure date to search for flights.
+        </p>
+      </div>
+    );
+  }
+
   if (loading && flights.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-sky-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1E3A5F]"></div>
+        <p className="ml-4 text-gray-600">Searching for flights...</p>
       </div>
     );
   }
@@ -127,14 +161,22 @@ export default function RealTimeFlightSearch({
       
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
       {/* Filters Sidebar */}
-      <div className="lg:col-span-1">
+      <div className="lg:col-span-1 space-y-4">
+        {/* Airline Filter */}
+        <AirlineFilterSelector
+          availableAirlines={airlines}
+          selectedAirlines={selectedAirlines}
+          onSelectionChange={setSelectedAirlines}
+        />
+
+        {/* Other Filters */}
         <div className="bg-white rounded-lg border border-gray-200 p-5 sticky top-4">
-          <h3 className="font-bold text-gray-900 text-lg mb-6">Filter Results</h3>
+          <h3 className="font-bold text-gray-900 text-lg mb-6">Other Filters</h3>
 
           {/* Stops Filter */}
           <div className="mb-6">
             <label className="block text-sm font-semibold text-gray-900 mb-3">Stops</label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2">
               <button
                 onClick={() => setFilters(prev => ({ ...prev, maxStops: 0 }))}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
@@ -163,14 +205,14 @@ export default function RealTimeFlightSearch({
                     : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
                 }`}
               >
-                2+ Stops
+                Any Stops
               </button>
             </div>
           </div>
 
           {/* Price Filter */}
-          <div className="mb-6">
-            <label className="block text-sm font-semibold text-gray-900 mb-3">Price</label>
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-3">Max Price</label>
             <div className="space-y-2">
               <input
                 type="range"
@@ -188,19 +230,9 @@ export default function RealTimeFlightSearch({
               />
               <div className="flex justify-between text-xs text-gray-600">
                 <span>$0</span>
-                <span>${filters.maxPrice ?? 1000}</span>
+                <span className="font-semibold">${filters.maxPrice ?? 1000}</span>
               </div>
             </div>
-          </div>
-
-          {/* Airline Filter */}
-          <div>
-            <label className="block text-sm font-semibold text-gray-900 mb-3">Airlines</label>
-            <AirlineFilter
-              airlines={airlines}
-              selectedAirlines={selectedAirlines}
-              onSelect={setSelectedAirlines}
-            />
           </div>
         </div>
       </div>

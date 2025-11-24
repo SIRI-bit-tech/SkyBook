@@ -21,7 +21,7 @@ export default function Header() {
         
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-8">
-          <Link href="/flights/search" className="text-gray-700 hover:text-[#1E3A5F] transition font-medium">
+          <Link href="/flights" className="text-gray-700 hover:text-[#1E3A5F] transition font-medium">
             Flights
           </Link>
           <Link href="/airlines" className="text-gray-700 hover:text-[#1E3A5F] transition font-medium">
@@ -56,7 +56,7 @@ export default function Header() {
         <div className="md:hidden bg-white border-t border-gray-200 shadow-lg">
           <nav className="flex flex-col px-4 py-4 space-y-4">
             <Link 
-              href="/flights/search" 
+              href="/flights" 
               className="text-gray-700 hover:text-[#1E3A5F] transition font-medium py-2"
               onClick={closeMobileMenu}
             >
