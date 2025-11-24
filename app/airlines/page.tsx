@@ -8,7 +8,7 @@ import AirlineSearch from '@/components/airlines/AirlineSearch';
 import { Plane } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 
-interface AirlineFilters {
+interface AirlineFiltersState {
   search: string;
   country: string;
   region: string;
@@ -19,7 +19,7 @@ export default function BrowseAirlinesPage() {
   const [airlines, setAirlines] = useState<Airline[]>([]);
   const [filteredAirlines, setFilteredAirlines] = useState<Airline[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState<AirlineFilters>({
+  const [filters, setFilters] = useState<AirlineFiltersState>({
     search: '',
     country: '',
     region: '',
@@ -79,7 +79,7 @@ export default function BrowseAirlinesPage() {
     setFilteredAirlines(filtered);
   };
 
-  const handleFiltersChange = (newFilters: Partial<AirlineFilters>) => {
+  const handleFiltersChange = (newFilters: Partial<AirlineFiltersState>) => {
     setFilters(prev => ({ ...prev, ...newFilters }));
   };
 
