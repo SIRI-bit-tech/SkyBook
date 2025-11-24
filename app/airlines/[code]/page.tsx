@@ -184,7 +184,7 @@ export default function AirlineDetailsPage() {
                   <div className="space-y-4">
                     {filteredFlights.map((flight, index) => (
                       <AirlineFlightCard 
-                        key={`${flight.id || 'flight'}-${index}-${flight.price?.total || ''}`} 
+                        key={flight.id || `flight-${index}`} 
                         flight={flight} 
                       />
                     ))}
