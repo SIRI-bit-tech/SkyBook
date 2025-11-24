@@ -321,6 +321,30 @@ class AmadeusClient {
       throw error;
     }
   }
+
+  /**
+   * Get flight offer details by ID
+   * Note: Amadeus flight offers are temporary and expire quickly
+   * Flight offers should be stored in sessionStorage for retrieval
+   */
+  async getFlightOfferDetails(offerId: string): Promise<AmadeusFlightData | null> {
+    try {
+      const token = await this.authenticate();
+      const { baseUrl } = this.getCredentials();
+
+      // Amadeus doesn't have a direct "get offer by ID" endpoint
+      // Flight offers are ephemeral and need to be retrieved from search results
+      // This is a limitation of the Amadeus API
+      
+      console.warn('Flight offer lookup by ID is not directly supported by Amadeus API');
+      console.warn('Flight offers should be stored in sessionStorage for retrieval');
+      
+      return null;
+    } catch (error) {
+      console.error('Amadeus flight offer details error:', error);
+      return null;
+    }
+  }
 }
 
 export const amadeusClient = new AmadeusClient();

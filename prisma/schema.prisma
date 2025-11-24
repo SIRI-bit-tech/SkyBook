@@ -196,3 +196,5 @@ model Payment {
 
   @@map("payments")
 }
+
+

@@ -6,7 +6,7 @@ import { fetchRealTimeFlights, getAirlinesForRoute } from "@/lib/real-time-fligh
  * 
  * POST /api/flights/real-time-search
  * 
- * Now uses Amadeus API for real-time flight data instead of database.
+ * Uses Amadeus API for real-time flight data
  */
 export async function POST(request: NextRequest) {
   try {
