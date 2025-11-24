@@ -81,6 +81,12 @@ export default function RealTimeFlightSearch({
         
         if (!response.ok) {
           console.error('API error:', data);
+          
+          // Show user-friendly error for rate limits
+          if (response.status === 429) {
+            console.warn('Rate limit exceeded. Retrying in 60 seconds...');
+          }
+          
           setFlights([]);
           setAirlines([]);
           return;
@@ -107,7 +113,8 @@ export default function RealTimeFlightSearch({
     };
 
     fetchFlights();
-    const interval = setInterval(fetchFlights, 10000);
+    // Refresh every 60 seconds instead of 10 to avoid rate limits
+    const interval = setInterval(fetchFlights, 60000);
     return () => clearInterval(interval);
   }, [departure, arrival, departureDate, passengers, selectedAirlines, filters]);
 

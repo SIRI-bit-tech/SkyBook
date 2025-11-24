@@ -31,19 +31,41 @@ export async function POST(request: NextRequest) {
       maxStops,
     });
 
-    // Get available airlines for this route
-    const availableAirlines = await getAirlinesForRoute(departure, arrival, departureDate);
+    // Extract unique airlines from flight results (avoid duplicate API call)
+    const uniqueAirlines = Array.from(
+      new Map(
+        (result.flights || []).map((flight: any) => [
+          flight.airline?.code,
+          {
+            _id: flight.airline?.code,
+            code: flight.airline?.code,
+            name: flight.airline?.name,
+            logo: flight.airline?.logo,
+          }
+        ])
+      ).values()
+    );
 
     return NextResponse.json({
       success: true,
       flights: result.flights || [],
-      airlines: availableAirlines || [],
+      airlines: uniqueAirlines,
       count: result.count || 0,
       source: 'amadeus-api',
       timestamp: new Date().toISOString(),
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Real-time Flight Search Error]", error);
+    
+    // Handle rate limit errors specifically
+    if (error.response?.status === 429 || error.status === 429) {
+      return NextResponse.json({ 
+        error: "Rate limit exceeded",
+        message: "Too many requests to flight API. Please wait a moment and try again.",
+        retryAfter: 60
+      }, { status: 429 });
+    }
+    
     return NextResponse.json({ 
       error: "Failed to search flights",
       message: error instanceof Error ? error.message : "Unknown error"
