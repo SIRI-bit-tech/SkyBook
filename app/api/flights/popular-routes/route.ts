@@ -10,14 +10,17 @@ import path from 'path';
  * 
  * Returns popular flight routes from Amadeus Flight Inspiration Search API
  * Falls back to OpenFlights routes data if Amadeus fails
+ * 
+ * Uses deterministic selection based on day-of-week for cacheability
  */
 export async function GET() {
   try {
     // Major hub airports to get inspiration from
     const majorHubs = ['JFK', 'LAX', 'LHR', 'DXB', 'SIN', 'CDG', 'FRA', 'NRT'];
     
-    // Randomly select 2-3 hubs to get diverse routes
-    const selectedHubs = majorHubs.sort(() => 0.5 - Math.random()).slice(0, 3);
+    // Deterministically select 3 hubs based on day of week for cacheability
+    // This rotates through different hub combinations each day while remaining consistent within the day
+    const selectedHubs = selectDeterministicHubs(majorHubs, 3);
     
     const allRoutes: any[] = [];
     
@@ -26,8 +29,17 @@ export async function GET() {
       try {
         const destinations = await amadeusClient.getFlightInspiration(hub, 2000);
         
+        // Filter out invalid destinations before mapping
+        const validDestinations = destinations.filter((dest: any) => {
+          if (!dest || typeof dest.destination !== 'string' || !dest.destination.trim()) {
+            console.warn(`Skipping invalid destination from ${hub}:`, dest);
+            return false;
+          }
+          return true;
+        });
+        
         // Transform Amadeus data to our format
-        const routes = destinations.slice(0, 3).map((dest: any) => ({
+        const routes = validDestinations.slice(0, 3).map((dest: any) => ({
           from: hub,
           to: dest.destination,
           fromCity: getCityName(hub),
@@ -117,10 +129,8 @@ async function getOpenFlightsPopularRoutes(): Promise<any[]> {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 20); // Get top 20 most frequent routes
     
-    // Randomly select 8 from the top 20
-    const selectedRoutes = sortedRoutes
-      .sort(() => 0.5 - Math.random())
-      .slice(0, 8)
+    // Deterministically select 8 from the top 20 based on day of week
+    const selectedRoutes = selectDeterministicRoutes(sortedRoutes, 8)
       .map(([route]) => {
         const [from, to] = route.split('-');
         return {
@@ -138,6 +148,70 @@ async function getOpenFlightsPopularRoutes(): Promise<any[]> {
     console.error('Failed to load OpenFlights routes:', error);
     throw error;
   }
+}
+
+/**
+ * Deterministic selection utilities
+ * 
+ * These functions use the current day-of-week as a stable seed to rotate through
+ * different selections while keeping responses consistent and cacheable within each day.
+ * 
+ * The rotation strategy:
+ * - Day 0 (Sunday): Start at index 0
+ * - Day 1 (Monday): Start at index 1
+ * - Day 2 (Tuesday): Start at index 2
+ * - etc.
+ * 
+ * This provides variety across the week while ensuring all requests on the same day
+ * return identical results, making responses cacheable.
+ */
+
+/**
+ * Get the current day of week (0-6, where 0 is Sunday)
+ * Exported for testing purposes
+ */
+export function getDayOfWeek(): number {
+  return new Date().getDay();
+}
+
+/**
+ * Deterministically select items from an array based on day of week
+ * @param items - Array to select from
+ * @param count - Number of items to select
+ * @returns Selected items in a deterministic order
+ */
+function selectDeterministicHubs<T>(items: T[], count: number): T[] {
+  const dayOfWeek = getDayOfWeek();
+  const startIndex = dayOfWeek % items.length;
+  
+  const selected: T[] = [];
+  for (let i = 0; i < count && i < items.length; i++) {
+    const index = (startIndex + i) % items.length;
+    selected.push(items[index]);
+  }
+  
+  return selected;
+}
+
+/**
+ * Deterministically select routes from sorted route list based on day of week
+ * Uses a different rotation pattern to provide variety
+ * @param routes - Sorted array of routes to select from
+ * @param count - Number of routes to select
+ * @returns Selected routes in a deterministic order
+ */
+function selectDeterministicRoutes<T>(routes: T[], count: number): T[] {
+  const dayOfWeek = getDayOfWeek();
+  // Use a different offset calculation for routes to vary selection pattern
+  const startIndex = (dayOfWeek * 2) % routes.length;
+  
+  const selected: T[] = [];
+  for (let i = 0; i < count && i < routes.length; i++) {
+    const index = (startIndex + i) % routes.length;
+    selected.push(routes[index]);
+  }
+  
+  return selected;
 }
 
 // Helper function to get city names for major airports
