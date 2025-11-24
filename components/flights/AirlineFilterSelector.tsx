@@ -3,15 +3,13 @@
 import { useState, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import type { Airline } from '@/types/global';
 
-interface Airline {
-  code: string;
-  name: string;
-  logo: string;
-}
+// Define a narrow type for airline filter items using only the fields we need
+type AirlineFilterItem = Pick<Airline, 'code' | 'name' | 'logo'>;
 
 interface AirlineFilterSelectorProps {
-  availableAirlines: Airline[];
+  availableAirlines: AirlineFilterItem[];
   selectedAirlines: string[];
   onSelectionChange: (selectedCodes: string[]) => void;
 }
@@ -22,7 +20,7 @@ export default function AirlineFilterSelector({
   onSelectionChange,
 }: AirlineFilterSelectorProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredAirlines, setFilteredAirlines] = useState<Airline[]>(availableAirlines);
+  const [filteredAirlines, setFilteredAirlines] = useState<AirlineFilterItem[]>(availableAirlines);
 
   // Filter airlines based on search query
   useEffect(() => {
