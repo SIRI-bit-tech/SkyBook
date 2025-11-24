@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs from 'fs/promises';
 import path from 'path';
 import { Airline } from '@/types/global';
 
@@ -16,54 +16,68 @@ export interface OpenFlightsAirline {
 class AirlineDataService {
   private airlines: OpenFlightsAirline[] = [];
   private initialized = false;
+  private loadingPromise: Promise<void> | null = null;
 
   private async loadAirlines(): Promise<void> {
+    // If already initialized, return immediately
     if (this.initialized) return;
 
-    try {
-      const filePath = path.join(process.cwd(), 'public', 'airlines.dat');
-      const csvData = fs.readFileSync(filePath, 'utf-8');
-      
-      // Parse CSV data (OpenFlights format)
-      const lines = csvData.trim().split('\n');
-      this.airlines = lines
-        .map(line => {
-          // Parse CSV line with proper handling of quoted fields
-          const fields = this.parseCSVLine(line);
-          
-          if (fields.length < 8) return null;
-          
-          const iataCode = fields[3]?.replace(/"/g, '').trim();
-          const icaoCode = fields[4]?.replace(/"/g, '').trim();
-          
-          // Only include airlines with valid IATA codes and active status
-          if (!iataCode || iataCode === '\\N' || iataCode === '-' || iataCode.length !== 2) {
-            return null;
-          }
+    // If already loading, wait for that promise
+    if (this.loadingPromise) return this.loadingPromise;
 
-          const active = fields[7]?.replace(/"/g, '').trim() === 'Y';
-          if (!active) return null;
+    // Start loading
+    this.loadingPromise = (async () => {
+      try {
+        const filePath = path.join(process.cwd(), 'public', 'airlines.dat');
+        const csvData = await fs.readFile(filePath, 'utf-8');
+        
+        // Parse CSV data (OpenFlights format)
+        const lines = csvData.trim().split('\n');
+        const parsedAirlines = lines
+          .map(line => {
+            // Parse CSV line with proper handling of quoted fields
+            const fields = this.parseCSVLine(line);
+            
+            if (fields.length < 8) return null;
+            
+            const iataCode = fields[3]?.replace(/"/g, '').trim();
+            const icaoCode = fields[4]?.replace(/"/g, '').trim();
+            
+            // Only include airlines with valid IATA codes and active status
+            if (!iataCode || iataCode === '\\N' || iataCode === '-' || iataCode.length !== 2) {
+              return null;
+            }
 
-          return {
-            id: parseInt(fields[0]) || 0,
-            name: fields[1]?.replace(/"/g, '').trim() || '',
-            alias: fields[2]?.replace(/"/g, '').trim() || '',
-            iataCode,
-            icaoCode: icaoCode === '\\N' ? '' : icaoCode,
-            callsign: fields[5]?.replace(/"/g, '').trim() || '',
-            country: fields[6]?.replace(/"/g, '').trim() || '',
-            active: true, // We only return active airlines
-          };
-        })
-        .filter((airline): airline is OpenFlightsAirline => airline !== null && airline.active);
+            const active = fields[7]?.replace(/"/g, '').trim() === 'Y';
+            if (!active) return null;
 
-      console.log(`Loaded ${this.airlines.length} active airlines from OpenFlights database`);
-      this.initialized = true;
-    } catch (error) {
-      console.error('Failed to load airlines database:', error);
-      this.airlines = [];
-      this.initialized = true;
-    }
+            return {
+              id: parseInt(fields[0]) || 0,
+              name: fields[1]?.replace(/"/g, '').trim() || '',
+              alias: fields[2]?.replace(/"/g, '').trim() || '',
+              iataCode,
+              icaoCode: icaoCode === '\\N' ? '' : icaoCode,
+              callsign: fields[5]?.replace(/"/g, '').trim() || '',
+              country: fields[6]?.replace(/"/g, '').trim() || '',
+              active: true, // We only return active airlines
+            };
+          })
+          .filter((airline): airline is OpenFlightsAirline => airline !== null && airline.active);
+
+        // Only set airlines and initialized on success
+        this.airlines = parsedAirlines;
+        this.initialized = true;
+        console.log(`Loaded ${this.airlines.length} active airlines from OpenFlights database`);
+      } catch (error) {
+        console.error('Failed to load airlines database:', error instanceof Error ? error.message : error);
+        // Don't set initialized = true on error, allowing retry on next call
+        // Clear the loading promise so next call can retry
+        this.loadingPromise = null;
+        throw error; // Re-throw to let caller handle
+      }
+    })();
+
+    return this.loadingPromise;
   }
 
   private parseCSVLine(line: string): string[] {

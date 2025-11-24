@@ -49,8 +49,9 @@ export default function AirlineDetailsPage() {
   const filteredFlights = flights.filter((flight) => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
-    const origin = flight.itineraries?.[0]?.segments?.[0]?.departure?.iataCode?.toLowerCase() || '';
-    const destination = flight.itineraries?.[0]?.segments?.[flight.itineraries[0].segments.length - 1]?.arrival?.iataCode?.toLowerCase() || '';
+    const segments = flight.itineraries?.[0]?.segments ?? [];
+    const origin = segments[0]?.departure?.iataCode?.toLowerCase() || '';
+    const destination = segments[segments.length - 1]?.arrival?.iataCode?.toLowerCase() || '';
     const price = flight.price?.total?.toLowerCase() || '';
     return origin.includes(query) || destination.includes(query) || price.includes(query);
   });
@@ -182,7 +183,10 @@ export default function AirlineDetailsPage() {
                 {filteredFlights.length > 0 ? (
                   <div className="space-y-4">
                     {filteredFlights.map((flight, index) => (
-                      <AirlineFlightCard key={flight.id || index} flight={flight} />
+                      <AirlineFlightCard 
+                        key={flight.id || `flight-${index}`} 
+                        flight={flight} 
+                      />
                     ))}
                   </div>
                 ) : flights.length > 0 ? (
