@@ -11,6 +11,9 @@ export interface Airline {
   fleetSize: number;
   isActive: boolean;
   isFeatured: boolean;
+  foundedYear?: number;
+  destinations?: number;
+  headquarters?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }

@@ -24,6 +24,9 @@ export default function Header() {
           <Link href="/flights/search" className="text-gray-700 hover:text-[#1E3A5F] transition font-medium">
             Flights
           </Link>
+          <Link href="/airlines" className="text-gray-700 hover:text-[#1E3A5F] transition font-medium">
+            Airlines
+          </Link>
           <Link href="/bookings" className="text-gray-700 hover:text-[#1E3A5F] transition font-medium">
             My Bookings
           </Link>
@@ -58,6 +61,13 @@ export default function Header() {
               onClick={closeMobileMenu}
             >
               Flights
+            </Link>
+            <Link 
+              href="/airlines" 
+              className="text-gray-700 hover:text-[#1E3A5F] transition font-medium py-2"
+              onClick={closeMobileMenu}
+            >
+              Airlines
             </Link>
             <Link 
               href="/bookings" 
