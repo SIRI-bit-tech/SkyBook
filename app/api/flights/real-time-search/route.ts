@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchDuffelFlights, getDuffelAirlinesForRoute } from "@/lib/duffel-flights";
+import { fetchDuffelFlights } from "@/lib/duffel-flights";
 
 /**
  * Real-Time Flight Search API
@@ -32,17 +32,20 @@ export async function POST(request: NextRequest) {
     });
 
     // Extract unique airlines from flight results (avoid duplicate API call)
+    // Filter out flights without valid airline codes before creating the Map
     const uniqueAirlines = Array.from(
       new Map(
-        (result.flights || []).map((flight: any) => [
-          flight.airline?.code,
-          {
-            _id: flight.airline?.code,
-            code: flight.airline?.code,
-            name: flight.airline?.name,
-            logo: flight.airline?.logo,
-          }
-        ])
+        (result.flights || [])
+          .filter((flight: any) => flight.airline?.code)
+          .map((flight: any) => [
+            flight.airline.code,
+            {
+              _id: flight.airline.code,
+              code: flight.airline.code,
+              name: flight.airline.name,
+              logo: flight.airline.logo,
+            }
+          ])
       ).values()
     );
 

@@ -53,8 +53,8 @@ export default function FlightSearchBar() {
       );
       const result = await response.json();
 
-      // Transform Duffel API response to match our Airport interface
-      const airports = (result.results || result.data || []).map((airport: any) => ({
+      // Transform API response to match our Airport interface
+      const airports = (result.data || []).map((airport: any) => ({
         code: airport.code || airport.iataCode,
         name: airport.name,
         city: airport.city,

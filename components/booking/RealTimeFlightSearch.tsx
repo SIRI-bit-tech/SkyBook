@@ -84,7 +84,7 @@ export default function RealTimeFlightSearch({
           
           // Show user-friendly error for rate limits
           if (response.status === 429) {
-            console.warn('Rate limit exceeded. Retrying in 60 seconds...');
+            console.warn('Rate limit exceeded. Will retry on next poll.');
           }
           
           setFlights([]);

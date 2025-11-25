@@ -55,9 +55,15 @@ export default function FlightDetailsModal({
   const airlines = flight.validatingAirlineCodes || [];
   const mainAirline = airlines[0] || firstSegment?.carrierCode;
 
-  // Calculate price breakdown
-  const basePrice = price * 0.85;
-  const taxes = price * 0.15;
+  // Get actual price breakdown from API data
+  const rawOffer = (flight as any).rawOffer;
+  const basePrice = rawOffer?.base_amount 
+    ? parseFloat(rawOffer.base_amount) 
+    : price * 0.85; // Fallback to estimate if not available
+  const taxes = rawOffer?.tax_amount 
+    ? parseFloat(rawOffer.tax_amount) 
+    : price * 0.15; // Fallback to estimate if not available
+  const hasActualBreakdown = !!(rawOffer?.base_amount && rawOffer?.tax_amount);
 
   const handleSelectFlight = () => {
     if (onSelectFlight && flight) {
@@ -341,16 +347,21 @@ export default function FlightDetailsModal({
           {/* Price Summary & CTA */}
           <div className="border-t border-gray-200 pt-6">
             <div className="bg-white rounded-lg border border-gray-200 p-6">
-              <h4 className="text-lg font-bold text-gray-900 mb-4">Price Summary</h4>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-lg font-bold text-gray-900">Price Summary</h4>
+                {!hasActualBreakdown && (
+                  <span className="text-xs text-gray-500 italic">Estimated breakdown</span>
+                )}
+              </div>
               
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between text-gray-600">
                   <span>Base Fare</span>
-                  <span>${basePrice.toFixed(2)}</span>
+                  <span>{currency} {basePrice.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-gray-600">
                   <span>Taxes & Fees</span>
-                  <span>${taxes.toFixed(2)}</span>
+                  <span>{currency} {taxes.toFixed(2)}</span>
                 </div>
               </div>
 
@@ -358,7 +369,7 @@ export default function FlightDetailsModal({
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-bold text-gray-900">Total</span>
                   <span className="text-3xl font-bold text-[#1E3A5F]">
-                    ${price.toFixed(2)}
+                    {currency} {price.toFixed(2)}
                   </span>
                 </div>
               </div>
