@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { amadeusClient } from '@/lib/amadeus-client';
+import { duffelClient } from '@/lib/duffel-client';
 import { airlineDataService } from '@/lib/airline-data';
 
 /**
@@ -9,7 +9,7 @@ import { airlineDataService } from '@/lib/airline-data';
  * 
  * Returns:
  * - Airline information (from OpenFlights database)
- * - Real flight offers for that airline (from Amadeus API)
+ * - Real flight offers for that airline (from Duffel API)
  */
 export async function GET(
   request: NextRequest,
@@ -30,7 +30,7 @@ export async function GET(
     }
 
     try {
-      // Get real flight data from Amadeus for this airline
+      // Get real flight data from Duffel for this airline
       // We'll search for flights from major hubs for this airline
       const flights = await getAirlineFlights(airlineCode);
       
@@ -39,13 +39,13 @@ export async function GET(
         airline,
         flights,
         count: flights.length,
-        source: 'amadeus-api',
-        note: `Real flight data for ${airline.name} from Amadeus API`
+        source: 'duffel-api',
+        note: `Real flight data for ${airline.name} from Duffel API`
       });
     } catch (flightError) {
       console.error(`Failed to fetch flights for ${airlineCode}:`, flightError);
       
-      // Return airline info without flights if Amadeus fails
+      // Return airline info without flights if Duffel fails
       return NextResponse.json({
         success: true,
         airline,
@@ -85,19 +85,17 @@ async function getAirlineFlights(airlineCode: string) {
           tomorrow.setDate(tomorrow.getDate() + 1);
           const departureDate = tomorrow.toISOString().split('T')[0];
           
-          const flightOffers = await amadeusClient.searchFlights(
+          const flightOffers = await duffelClient.searchFlights(
             mainHub,
             destination,
             departureDate,
-            1, // 1 adult
-            0, // 0 children
-            0  // 0 infants
+            1 // 1 adult
           );
           
           // Filter flights to only include the specific airline
-          const airlineFlights = flightOffers.filter((flight: any) => 
-            flight.validatingAirlineCodes?.includes(airlineCode) ||
-            flight.itineraries?.[0]?.segments?.[0]?.carrierCode === airlineCode
+          const airlineFlights = flightOffers.filter((offer: any) => 
+            offer.owner?.iata_code === airlineCode ||
+            offer.slices?.[0]?.segments?.[0]?.marketing_carrier?.iata_code === airlineCode
           );
           
           flights.push(...airlineFlights.slice(0, 2)); // Max 2 flights per route

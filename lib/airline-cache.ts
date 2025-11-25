@@ -13,7 +13,7 @@ interface CachedAirline {
   name: string;
   logo: string;
   cachedAt: number;
-  source: 'amadeus' | 'fallback' | 'search-result';
+  source: 'duffel' | 'fallback' | 'search-result';
 }
 
 class AirlineCache {
@@ -107,18 +107,18 @@ class AirlineCache {
       return cached;
     }
 
-    // Try to fetch from Amadeus API
+    // Try to fetch from Duffel API
     try {
-      const { amadeusClient } = await import('./amadeus-client');
-      const airlineData = await amadeusClient.getAirlineData(code);
+      const { duffelClient } = await import('./duffel-client');
+      const airlineData = await duffelClient.getAirline(code);
       
       if (airlineData) {
         const airline: CachedAirline = {
           code,
-          name: airlineData.businessName || airlineData.commonName || code,
-          logo: `https://images.kiwi.com/airlines/64/${code}.png`,
+          name: airlineData.name || code,
+          logo: airlineData.logo_symbol_url || `https://images.kiwi.com/airlines/64/${code}.png`,
           cachedAt: Date.now(),
-          source: 'amadeus',
+          source: 'duffel',
         };
         
         this.cache.set(code, airline);
@@ -179,15 +179,16 @@ class AirlineCache {
             // Process airlines returned by API
             data.airlines?.forEach((airline: any) => {
               const cached: CachedAirline = {
-                code: airline.iataCode,
-                name: airline.businessName || airline.commonName || airline.iataCode,
-                logo: `https://images.kiwi.com/airlines/64/${airline.iataCode}.png`,
+                code: airline.iata_code || airline.code,
+                name: airline.name || airline.iata_code || airline.code,
+                logo: airline.logo_symbol_url || airline.logo || `https://images.kiwi.com/airlines/64/${airline.iata_code || airline.code}.png`,
                 cachedAt: Date.now(),
-                source: 'amadeus',
+                source: 'duffel',
               };
               
-              returnedCodes.add(airline.iataCode);
-              this.cache.set(airline.iataCode, cached);
+              const airlineCode = airline.iata_code || airline.code;
+              returnedCodes.add(airlineCode);
+              this.cache.set(airlineCode, cached);
               results.push(cached);
             });
             

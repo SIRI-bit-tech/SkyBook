@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { airportSearchService } from '@/lib/airport-search';
+import { searchAirports } from '@/lib/airport-search';
 
 /**
- * Airport Search API (Autocomplete)
+ * Airport Search API using OpenFlights Data
  * 
- * GET /api/airports/search?q=london
+ * GET /api/airports/search?query=london
+ * GET /api/airports/search?q=london (also supported)
  * 
- * Returns airports and cities matching the search query using OpenFlights database
+ * Fast, comprehensive airport search using local OpenFlights database
+ * No external API calls - perfect for autocomplete
  */
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const query = searchParams.get('q');
+    // Accept both 'query' and 'q' parameters for compatibility
+    const query = searchParams.get('query') || searchParams.get('q');
 
     if (!query || query.length < 2) {
       return NextResponse.json(
@@ -20,25 +23,34 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Search airports using OpenFlights database
-    const results = await airportSearchService.searchAirports(query, 20);
+    // Search using OpenFlights data (fast, no API calls)
+    const airports = searchAirports(query, 10);
+
+    // Transform to expected format
+    const results = airports.map((airport) => ({
+      _id: airport.code,
+      name: airport.name,
+      code: airport.code,
+      city: airport.city,
+      country: airport.country,
+      region: airport.region,
+      displayName: `${airport.name} (${airport.code})`,
+    }));
 
     return NextResponse.json({
       success: true,
+      results,
       count: results.length,
-      data: results,
-      source: 'OurAirports',
-      note: 'Worldwide airport search with state/region support powered by OurAirports database',
+      source: 'openflights',
     });
-
   } catch (error: any) {
-    console.error('Airport search error:', error);
-    
+    console.error('[Airport Search Error]', error);
     return NextResponse.json(
-      { error: 'Failed to search airports', message: error.message },
+      {
+        error: 'Failed to search airports',
+        message: error.message,
+      },
       { status: 500 }
     );
   }
 }
-
-

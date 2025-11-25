@@ -86,7 +86,7 @@ model Account {
 // REMOVED: Airline, Airport, Flight models
 // ============================================
 // These models have been removed because the app now uses
-// real-time data from Amadeus API instead of database storage.
+// real-time data from Duffel API instead of database storage.
 //
 // Flight data is captured as a snapshot in the Booking model
 // when a user makes a booking.
@@ -121,7 +121,7 @@ model Booking {
   bookingReference String   @unique
   userId           String
   
-  // Flight snapshot data (captured at booking time from Amadeus API)
+  // Flight snapshot data (captured at booking time from Duffel API)
   flightNumber     String
   airlineCode      String
   airlineName      String
@@ -196,3 +196,5 @@ model Payment {
 
   @@map("payments")
 }
+
+

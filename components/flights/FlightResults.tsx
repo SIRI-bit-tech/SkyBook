@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plane, Clock, Calendar, Users, GitCompare } from 'lucide-react';
 import { formatDuration, formatTime, formatDate, parseDuration } from '@/lib/flight-utils';
 import { getAirlineLogo, getAirlineName } from '@/lib/airline-logos';
 import FlightComparison from './FlightComparison';
+import FlightDetailsModal from './FlightDetailsModal';
 import Image from 'next/image';
-import { FlightResult, Filters } from '@/types/global';
+import type { FlightResult, Filters } from '@/types/global';
 
 interface FlightResultsProps {
   flights: FlightResult[];
@@ -20,10 +22,20 @@ interface FlightResultsProps {
 type SortOption = 'price-low' | 'price-high' | 'duration-short' | 'duration-long' | 'departure-early' | 'departure-late';
 
 export default function FlightResults({ flights, loading, error, filters }: FlightResultsProps) {
+  const router = useRouter();
   const [sortBy, setSortBy] = useState<SortOption>('price-low');
   const [compareFlights, setCompareFlights] = useState<FlightResult[]>([]);
   const [showComparison, setShowComparison] = useState(false);
+  const [selectedFlight, setSelectedFlight] = useState<FlightResult | null>(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const { airlines: selectedAirlines, priceRange, stops: selectedStops, departureTime } = filters;
+
+  // Cache flights in sessionStorage for the details page
+  useEffect(() => {
+    if (flights.length > 0) {
+      sessionStorage.setItem('flightSearchResults', JSON.stringify(flights));
+    }
+  }, [flights]);
 
   // Filter and sort flights
   const filteredAndSortedFlights = useMemo(() => {
@@ -165,6 +177,20 @@ export default function FlightResults({ flights, loading, error, filters }: Flig
     });
   };
 
+  const handleViewDetails = (flight: FlightResult) => {
+    setSelectedFlight(flight);
+    setShowDetailsModal(true);
+  };
+
+  const handleSelectFlight = (flight: FlightResult) => {
+    // Navigate to passenger details
+    const searchParams = new URLSearchParams({
+      flightId: flight.id,
+      passengers: '1',
+    });
+    router.push(`/passenger-details?${searchParams.toString()}`);
+  };
+
   return (
     <div className="space-y-4">
       {/* Sort Options & Compare */}
@@ -207,8 +233,20 @@ export default function FlightResults({ flights, loading, error, filters }: Flig
           flight={flight}
           isComparing={compareFlights.some(f => f.id === flight.id)}
           onToggleCompare={() => toggleCompare(flight)}
+          onViewDetails={() => handleViewDetails(flight)}
         />
       ))}
+
+      {/* Flight Details Modal */}
+      <FlightDetailsModal
+        flight={selectedFlight}
+        open={showDetailsModal}
+        onClose={() => {
+          setShowDetailsModal(false);
+          setSelectedFlight(null);
+        }}
+        onSelectFlight={handleSelectFlight}
+      />
 
       {/* Comparison Modal */}
       {showComparison && (
@@ -225,12 +263,14 @@ interface FlightCardProps {
   flight: FlightResult;
   isComparing?: boolean;
   onToggleCompare?: () => void;
+  onViewDetails?: () => void;
 }
 
 function FlightCard({ 
   flight, 
   isComparing, 
-  onToggleCompare 
+  onToggleCompare,
+  onViewDetails
 }: FlightCardProps) {
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
   const itinerary = flight.itineraries?.[0];
@@ -319,8 +359,11 @@ function FlightCard({
             {currency} {parseFloat(price).toFixed(2)}
           </p>
           <div className="space-y-2">
-            <Button className="w-full bg-sky-500 hover:bg-sky-600 text-white">
-              Select Flight
+            <Button 
+              className="w-full bg-sky-500 hover:bg-sky-600 text-white"
+              onClick={onViewDetails}
+            >
+              View Details
             </Button>
             {onToggleCompare && (
               <Button

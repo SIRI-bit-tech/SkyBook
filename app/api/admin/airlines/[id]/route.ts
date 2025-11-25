@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { amadeusClient } from '@/lib/amadeus-client';
+import { duffelClient } from '@/lib/duffel-client';
 import { requireAdmin } from '@/lib/auth-server';
 
 /**
  * Admin Airline Details - READ ONLY
  * 
- * Fetches specific airline data from Amadeus API.
+ * Fetches specific airline data from Duffel API.
  */
 export async function GET(
   request: Request,
@@ -17,7 +17,7 @@ export async function GET(
     const { id } = await context.params;
     
     // Treat ID as airline code
-    const airline = await amadeusClient.getAirlineData(id.toUpperCase());
+    const airline = await duffelClient.getAirline(id.toUpperCase());
 
     if (!airline) {
       return NextResponse.json({ error: 'Airline not found' }, { status: 404 });
@@ -26,7 +26,7 @@ export async function GET(
     return NextResponse.json({
       success: true,
       airline,
-      source: 'amadeus-api',
+      source: 'duffel-api',
     });
   } catch (error) {
     console.error('Error fetching airline:', error);
@@ -40,13 +40,13 @@ export async function GET(
 export async function PATCH() {
   return NextResponse.json({
     error: 'Airline updates disabled',
-    message: 'Cannot update airlines. Airline data is managed by Amadeus API.',
+    message: 'Cannot update airlines. Airline data is managed by Duffel API.',
   }, { status: 410 });
 }
 
 export async function DELETE() {
   return NextResponse.json({
     error: 'Airline deletion disabled',
-    message: 'Cannot delete airlines. Airline data is managed by Amadeus API.',
+    message: 'Cannot delete airlines. Airline data is managed by Duffel API.',
   }, { status: 410 });
 }
