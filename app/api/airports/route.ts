@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { amadeusClient } from '@/lib/amadeus-client';
+import { duffelClient } from '@/lib/duffel-client';
 
 /**
- * Airport List API - Uses Amadeus API for real-time airport data
+ * Airport List API - Uses Duffel API for real-time airport data
  * 
  * GET /api/airports?search=london
  * 
- * This endpoint now fetches airports directly from Amadeus API
- * instead of using database seed data.
+ * This endpoint fetches airports directly from Duffel API
  */
 export async function GET(request: NextRequest) {
   try {
@@ -21,24 +20,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Fetch airports from Amadeus API
-    const results = await amadeusClient.getAirportData(search);
+    // Fetch airports from Duffel API
+    const results = await duffelClient.searchPlaces(search);
 
     // Transform results to match expected format
-    const airports = results.map((location: any) => ({
-      id: location.id,
-      code: location.iataCode,
-      name: location.name,
-      city: location.address?.cityName || '',
-      country: location.address?.countryName || '',
-      timezone: location.timeZoneOffset || '',
-      type: location.subType, // AIRPORT or CITY
+    const airports = results.map((place: any) => ({
+      id: place.iata_code,
+      code: place.iata_code,
+      name: place.name,
+      city: place.iata_city_code || place.iata_code,
+      country: place.iata_country_code || '',
+      timezone: place.time_zone || '',
+      type: place.type, // airport or city
     }));
 
     return NextResponse.json({ 
       airports,
       count: airports.length,
-      source: 'amadeus-api'
+      source: 'duffel-api'
     });
   } catch (error) {
     console.error('Error fetching airports:', error);

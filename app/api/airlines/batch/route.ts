@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { amadeusClient } from "@/lib/amadeus-client";
+import { duffelClient } from "@/lib/duffel-client";
 
 /**
  * Batch Airlines API - Fetches multiple airline data efficiently
@@ -27,32 +27,18 @@ export async function POST(request: NextRequest) {
     const limitedCodes = codes.slice(0, MAX_BATCH_SIZE);
 
     try {
-      // Fetch airline data from Amadeus API
-      const token = await amadeusClient.authenticate();
-      const baseUrl = process.env.AMADEUS_API_BASE_URL || 'https://test.api.amadeus.com';
-
-      const response = await fetch(
-        `${baseUrl}/v1/reference-data/airlines?airlineCodes=${limitedCodes.join(',')}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/vnd.amadeus+json',
-          },
-        }
+      // Fetch all airlines from Duffel and filter by requested codes
+      const allAirlines = await duffelClient.listAirlines();
+      const requestedAirlines = allAirlines.filter((airline: any) => 
+        limitedCodes.includes(airline.iata_code)
       );
-
-      if (!response.ok) {
-        throw new Error(`Amadeus API error: ${response.status}`);
-      }
-
-      const data = await response.json();
       
       return NextResponse.json({
         success: true,
-        airlines: data.data || [],
+        airlines: requestedAirlines,
         requestedCodes: limitedCodes,
-        foundCount: data.data?.length || 0,
-        source: 'amadeus-api'
+        foundCount: requestedAirlines.length,
+        source: 'duffel-api'
       });
 
     } catch (apiError) {
@@ -60,10 +46,9 @@ export async function POST(request: NextRequest) {
       
       // Return fallback data for all requested codes
       const fallbackAirlines = limitedCodes.map(code => ({
-        iataCode: code,
-        businessName: code,
-        commonName: code,
-        type: 'AIRLINE'
+        iata_code: code,
+        name: code,
+        code: code,
       }));
 
       return NextResponse.json({

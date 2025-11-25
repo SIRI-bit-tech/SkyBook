@@ -345,3 +345,126 @@ export interface BreadcrumbItem {
   label: string;
   href: string;
 }
+
+// Duffel API Types
+export interface DuffelPlace {
+  type: 'airport' | 'city';
+  name: string;
+  iata_code: string;
+  iata_city_code?: string;
+  iata_country_code: string;
+  latitude?: number;
+  longitude?: number;
+  time_zone?: string;
+}
+
+export interface DuffelAirline {
+  iata_code: string;
+  name: string;
+  logo_symbol_url?: string;
+  logo_lockup_url?: string;
+}
+
+export interface DuffelSegment {
+  id: string;
+  origin: DuffelPlace;
+  destination: DuffelPlace;
+  departing_at: string;
+  arriving_at: string;
+  duration: string;
+  marketing_carrier: DuffelAirline;
+  marketing_carrier_flight_number: string;
+  operating_carrier: DuffelAirline;
+  operating_carrier_flight_number: string;
+  aircraft?: {
+    name: string;
+    iata_code: string;
+  };
+  distance?: string;
+  stops?: number;
+}
+
+export interface DuffelSlice {
+  id: string;
+  origin: DuffelPlace;
+  destination: DuffelPlace;
+  departing_at: string;
+  arriving_at: string;
+  duration: string;
+  segments: DuffelSegment[];
+}
+
+export interface DuffelOffer {
+  id: string;
+  live_mode: boolean;
+  created_at: string;
+  updated_at: string;
+  expires_at: string;
+  total_amount: string;
+  total_currency: string;
+  tax_amount?: string;
+  tax_currency?: string;
+  base_amount?: string;
+  base_currency?: string;
+  slices: DuffelSlice[];
+  passengers: Array<{
+    id: string;
+    type: 'adult' | 'child' | 'infant_without_seat';
+    age?: number;
+  }>;
+  owner: DuffelAirline;
+  allowed_passenger_identity_document_types?: string[];
+  available_services?: any[];
+  conditions?: {
+    change_before_departure?: any;
+    refund_before_departure?: any;
+  };
+  payment_requirements?: {
+    requires_instant_payment: boolean;
+    payment_required_by?: string;
+    price_guarantee_expires_at?: string;
+  };
+}
+
+export interface DuffelOfferRequest {
+  id: string;
+  live_mode: boolean;
+  slices: Array<{
+    origin: string;
+    destination: string;
+    departure_date: string;
+  }>;
+  passengers: Array<{
+    type: 'adult' | 'child' | 'infant_without_seat';
+    age?: number;
+  }>;
+  cabin_class?: 'economy' | 'premium_economy' | 'business' | 'first';
+  max_connections?: number;
+}
+
+export interface DuffelOrder {
+  id: string;
+  live_mode: boolean;
+  created_at: string;
+  booking_reference: string;
+  total_amount: string;
+  total_currency: string;
+  slices: DuffelSlice[];
+  passengers: Array<{
+    id: string;
+    given_name: string;
+    family_name: string;
+    born_on: string;
+    email?: string;
+    phone_number?: string;
+    title?: string;
+    gender?: string;
+  }>;
+  documents?: any[];
+  services?: any[];
+  payment_status: {
+    awaiting_payment: boolean;
+    payment_required_by?: string;
+  };
+  conditions?: any;
+}

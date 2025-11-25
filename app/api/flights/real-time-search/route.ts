@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { fetchRealTimeFlights, getAirlinesForRoute } from "@/lib/real-time-flights";
+import { fetchDuffelFlights, getDuffelAirlinesForRoute } from "@/lib/duffel-flights";
 
 /**
  * Real-Time Flight Search API
  * 
  * POST /api/flights/real-time-search
  * 
- * Uses Amadeus API for real-time flight data
+ * Uses Duffel API for real-time flight data and booking
  */
 export async function POST(request: NextRequest) {
   try {
@@ -20,8 +20,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch flights from Amadeus API
-    const result = await fetchRealTimeFlights({
+    // Fetch flights from Duffel API
+    const result = await fetchDuffelFlights({
       departure,
       arrival,
       departureDate,
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       flights: result.flights || [],
       airlines: uniqueAirlines,
       count: result.count || 0,
-      source: 'amadeus-api',
+      source: 'duffel-api',
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {

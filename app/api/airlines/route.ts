@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { amadeusClient } from "@/lib/amadeus-client";
+import { duffelClient } from "@/lib/duffel-client";
 import { airlineDataService } from "@/lib/airline-data";
 
 /**
@@ -8,7 +8,7 @@ import { airlineDataService } from "@/lib/airline-data";
  * GET /api/airlines
  * 
  * Data Sources (in order of preference):
- * 1. Amadeus API - Real-time airline data
+ * 1. Duffel API - Real-time airline data
  * 2. OpenFlights Database - 1000+ airlines worldwide
  * 
  * Returns comprehensive airline information including:
@@ -19,22 +19,22 @@ import { airlineDataService } from "@/lib/airline-data";
  */
 export async function GET() {
   try {
-    // Fetch real airline data from Amadeus API
-    const airlinesData = await amadeusClient.getAllAirlines();
+    // Fetch real airline data from Duffel API
+    const airlinesData = await duffelClient.listAirlines();
 
     // Transform to match Airline interface from global.d.ts
     const airlines = airlinesData.map((airline: any) => ({
-      _id: airline.iataCode,
-      name: airline.businessName || airline.commonName,
-      code: airline.iataCode,
-      logo: `https://images.kiwi.com/airlines/64x64/${airline.iataCode}.png`,
-      country: 'International', // Amadeus doesn't provide country info
-      description: `${airline.businessName || airline.commonName} is a leading airline providing quality service worldwide.`,
-      website: `https://www.${airline.iataCode.toLowerCase()}.com`,
-      popularRoutes: [`${airline.iataCode}-JFK`, `${airline.iataCode}-LHR`],
-      fleetSize: 100, // Default fleet size for Amadeus data
+      _id: airline.iata_code,
+      name: airline.name,
+      code: airline.iata_code,
+      logo: airline.logo_symbol_url || `https://images.kiwi.com/airlines/64x64/${airline.iata_code}.png`,
+      country: 'International',
+      description: `${airline.name} is a leading airline providing quality service worldwide.`,
+      website: `https://www.${airline.iata_code.toLowerCase()}.com`,
+      popularRoutes: [`${airline.iata_code}-JFK`, `${airline.iata_code}-LHR`],
+      fleetSize: 100,
       isActive: true,
-      isFeatured: ['AA', 'DL', 'UA', 'BA', 'LH', 'AF', 'EK', 'QR', 'SQ'].includes(airline.iataCode),
+      isFeatured: ['AA', 'DL', 'UA', 'BA', 'LH', 'AF', 'EK', 'QR', 'SQ'].includes(airline.iata_code),
       createdAt: new Date(),
       updatedAt: new Date(),
     }));
@@ -43,8 +43,8 @@ export async function GET() {
       success: true,
       airlines,
       count: airlines.length,
-      source: 'amadeus-api',
-      note: 'Real-time airline data from Amadeus API'
+      source: 'duffel-api',
+      note: 'Real-time airline data from Duffel API'
     });
   } catch (error) {
     console.error("[Get Airlines Error]", error);
@@ -57,7 +57,7 @@ export async function GET() {
       airlines: openFlightsAirlines,
       count: openFlightsAirlines.length,
       source: 'openflights-database',
-      note: 'Using real OpenFlights airline database (1000+ airlines worldwide) due to Amadeus API error'
+      note: 'Using real OpenFlights airline database (1000+ airlines worldwide) due to Duffel API error'
     });
   }
 }

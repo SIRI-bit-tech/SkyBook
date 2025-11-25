@@ -1,4 +1,4 @@
-import { amadeusClient } from '@/lib/amadeus-client';
+import { duffelClient } from '@/lib/duffel-client';
 import { skyscannerClient } from '@/lib/skyscanner-client';
 import { prisma } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
@@ -22,22 +22,23 @@ export async function POST(request: NextRequest) {
       const departureCode = departureCity.toUpperCase();
       const arrivalCode = arrivalCity.toUpperCase();
 
-      // Amadeus API search
-      const amadeusFlights = await amadeusClient.searchFlights(
+      // Duffel API search
+      const duffelOffers = await duffelClient.searchFlights(
         departureCode,
         arrivalCode,
         departureDate,
         passengers,
         0,
         0,
-        returnDate && tripType !== 'oneway' ? returnDate : undefined
+        returnDate && tripType !== 'oneway' ? returnDate : undefined,
+        cabinClass as any
       );
 
-      if (amadeusFlights && amadeusFlights.length > 0) {
+      if (duffelOffers && duffelOffers.length > 0) {
         flights.push(
-          ...amadeusFlights.map((flight: any) => ({
-            source: 'amadeus',
-            ...flight,
+          ...duffelOffers.map((offer: any) => ({
+            source: 'duffel',
+            ...offer,
           }))
         );
       }
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
         );
       }
     } catch (externalError) {
-      console.warn('External API search failed, falling back to database:', externalError);
+      console.warn('External API search failed:', externalError);
     }
 
     // No database fallback - all flight data comes from external APIs
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
     const uniqueFlights = Array.from(
       new Map(
         flights.map((flight: any) => [
-          `${flight.flightNumber || flight.id}-${flight.price?.total || flight.minPrice}`,
+          `${flight.flightNumber || flight.id}-${flight.price?.total || flight.total_amount || flight.minPrice}`,
           flight,
         ])
       ).values()
@@ -88,8 +89,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       flights: uniqueFlights.sort((a: any, b: any) => {
-        const priceA = parseFloat(a.price?.total || a.minPrice || 0);
-        const priceB = parseFloat(b.price?.total || b.minPrice || 0);
+        const priceA = parseFloat(a.price?.total || a.total_amount || a.minPrice || 0);
+        const priceB = parseFloat(b.price?.total || b.total_amount || b.minPrice || 0);
         return priceA - priceB;
       }),
       count: uniqueFlights.length,

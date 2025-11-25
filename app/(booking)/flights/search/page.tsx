@@ -58,10 +58,12 @@ function FlightSearchContent() {
                 <span className="text-gray-700">{passengers} Adult{passengers !== 1 ? 's' : ''}</span>
               </div>
             </div>
-            <Button className="bg-[#1E3A5F] hover:bg-[#2A4A73] text-white px-6 py-2 rounded-lg flex items-center gap-2">
-              <Pencil className="w-4 h-4" />
-              Modify Search
-            </Button>
+            <Link href="/flights" className="no-underline">
+              <Button className="bg-[#1E3A5F] hover:bg-[#2A4A73] text-white px-6 py-2 rounded-lg flex items-center gap-2">
+                <Pencil className="w-4 h-4" />
+                Modify Search
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
