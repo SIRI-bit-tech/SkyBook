@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import L from 'leaflet';
 
 // Dynamically import map components to avoid SSR issues
 const MapContainer = dynamic(
@@ -32,10 +31,42 @@ interface Flight {
   _id: string;
   flightNumber: string;
   airline: { name: string; code: string; logo: string };
-  departure: { code: string; time: string };
-  arrival: { code: string; time: string };
+  departure: { code: string; time: string; latitude?: number; longitude?: number };
+  arrival: { code: string; time: string; latitude?: number; longitude?: number };
   duration: number;
   stops: number;
+  stopAirports?: Array<{
+    code: string;
+    name: string;
+    city: string;
+    latitude?: number;
+    longitude?: number;
+  }>;
+  segments?: Array<{
+    departure: {
+      code: string;
+      name: string;
+      city: string;
+      time: string;
+      latitude?: number;
+      longitude?: number;
+    };
+    arrival: {
+      code: string;
+      name: string;
+      city: string;
+      time: string;
+      latitude?: number;
+      longitude?: number;
+    };
+    carrier: {
+      code: string;
+      name: string;
+      flightNumber: string;
+    };
+    duration: number;
+    aircraft: string;
+  }>;
   price: { economy: number };
 }
 
@@ -59,13 +90,17 @@ export default function FlightMapView({ flights, departure, arrival, onClose }: 
     // Prevent body scroll when modal is open
     document.body.style.overflow = 'hidden';
     
-    // Fix Leaflet default marker icon issue
-    delete (L.Icon.Default.prototype as any)._getIconUrl;
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-      iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-      shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-    });
+    // Fix Leaflet default marker icon issue (client-side only)
+    if (typeof window !== 'undefined') {
+      import('leaflet').then((L) => {
+        delete (L.Icon.Default.prototype as any)._getIconUrl;
+        L.Icon.Default.mergeOptions({
+          iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+          iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+          shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+        });
+      });
+    }
     
     return () => {
       document.body.style.overflow = 'unset';
@@ -76,37 +111,24 @@ export default function FlightMapView({ flights, departure, arrival, onClose }: 
     try {
       setLoading(true);
       
-      // Extract IATA codes from labels (e.g., "New York (JFK)" -> "JFK")
-      const depCode = departure.includes('(') 
-        ? departure.split('(')[1].split(')')[0].trim()
-        : departure.trim().toUpperCase();
+      console.log('[FlightMapView] Using coordinates from flight data');
       
-      const arrCode = arrival.includes('(')
-        ? arrival.split('(')[1].split(')')[0].trim()
-        : arrival.trim().toUpperCase();
-      
-      // Fetch departure airport data from Amadeus API
-      const depResponse = await fetch(`/api/airports/search?q=${depCode}`);
-      const depData = await depResponse.json();
-      
-      // Fetch arrival airport data from Amadeus API
-      const arrResponse = await fetch(`/api/airports/search?q=${arrCode}`);
-      const arrData = await arrResponse.json();
-
-      // Find exact matches using extracted IATA codes
-      const depAirport = depData.data?.find((a: any) => a.iataCode === depCode);
-      const arrAirport = arrData.data?.find((a: any) => a.iataCode === arrCode);
-
-      // Set coordinates from API response
-      if (depAirport?.geoCode) {
-        setDepartureCoords([depAirport.geoCode.latitude, depAirport.geoCode.longitude]);
-      }
-      
-      if (arrAirport?.geoCode) {
-        setArrivalCoords([arrAirport.geoCode.latitude, arrAirport.geoCode.longitude]);
+      // Use coordinates from the first flight's data if available
+      if (flights.length > 0) {
+        const firstFlight = flights[0];
+        
+        if (firstFlight.departure?.latitude && firstFlight.departure?.longitude) {
+          console.log('[FlightMapView] Setting departure coords from flight data:', firstFlight.departure);
+          setDepartureCoords([firstFlight.departure.latitude, firstFlight.departure.longitude]);
+        }
+        
+        if (firstFlight.arrival?.latitude && firstFlight.arrival?.longitude) {
+          console.log('[FlightMapView] Setting arrival coords from flight data:', firstFlight.arrival);
+          setArrivalCoords([firstFlight.arrival.latitude, firstFlight.arrival.longitude]);
+        }
       }
     } catch (error) {
-      console.error('Error fetching airport coordinates:', error);
+      console.error('[FlightMapView] Error setting airport coordinates:', error);
     } finally {
       setLoading(false);
     }
@@ -198,48 +220,128 @@ export default function FlightMapView({ flights, departure, arrival, onClose }: 
               </Marker>
             )}
 
-            {/* Flight Routes */}
-            {flights.slice(0, 10).map((flight, index) => (
-              <Polyline
-                key={flight._id}
-                positions={[departureCoords, arrivalCoords]}
-                pathOptions={{
-                  color: index === 0 ? '#1E3A5F' : '#94a3b8',
-                  weight: index === 0 ? 3 : 2,
-                  opacity: index === 0 ? 0.8 : 0.4,
-                  dashArray: flight.stops > 0 ? '10, 10' : undefined,
-                }}
-              >
-                <Popup>
-                  <div className="min-w-[200px]">
-                    <div className="flex items-center gap-2 mb-2">
-                      <img
-                        src={flight.airline.logo}
-                        alt={flight.airline.name}
-                        className="w-8 h-8 object-contain"
-                      />
-                      <div>
-                        <p className="font-bold text-sm">{flight.flightNumber}</p>
-                        <p className="text-xs text-gray-600">{flight.airline.name}</p>
+            {/* Stop Airport Markers */}
+            {flights.slice(0, 10).map((flight) => 
+              flight.stopAirports?.map((stop, stopIndex) => 
+                stop.latitude && stop.longitude ? (
+                  <Marker 
+                    key={`${flight._id}-stop-${stopIndex}`}
+                    position={[stop.latitude, stop.longitude]}
+                  >
+                    <Popup>
+                      <div className="text-center">
+                        <p className="font-bold text-orange-600">{stop.code}</p>
+                        <p className="text-xs text-gray-600">{stop.city}</p>
+                        <p className="text-xs text-gray-500">Layover Stop</p>
+                      </div>
+                    </Popup>
+                  </Marker>
+                ) : null
+              )
+            )}
+
+            {/* Flight Routes with Segments */}
+            {flights.slice(0, 10).map((flight, index) => {
+              // If flight has segments with coordinates, draw each segment
+              if (flight.segments && flight.segments.length > 0) {
+                const allSegmentsHaveCoords = flight.segments.every(
+                  seg => seg.departure.latitude && seg.departure.longitude && 
+                         seg.arrival.latitude && seg.arrival.longitude
+                );
+
+                if (allSegmentsHaveCoords) {
+                  return flight.segments.map((segment, segIndex) => (
+                    <Polyline
+                      key={`${flight._id}-segment-${segIndex}`}
+                      positions={[
+                        [segment.departure.latitude!, segment.departure.longitude!],
+                        [segment.arrival.latitude!, segment.arrival.longitude!]
+                      ]}
+                      pathOptions={{
+                        color: index === 0 ? '#1E3A5F' : '#94a3b8',
+                        weight: index === 0 ? 3 : 2,
+                        opacity: index === 0 ? 0.8 : 0.4,
+                      }}
+                    >
+                      <Popup>
+                        <div className="min-w-[200px]">
+                          <div className="flex items-center gap-2 mb-2">
+                            <img
+                              src={flight.airline.logo}
+                              alt={flight.airline.name}
+                              className="w-8 h-8 object-contain"
+                            />
+                            <div>
+                              <p className="font-bold text-sm">{segment.carrier.flightNumber}</p>
+                              <p className="text-xs text-gray-600">{segment.carrier.name}</p>
+                            </div>
+                          </div>
+                          <div className="text-xs space-y-1">
+                            <p>
+                              <span className="font-semibold">Route:</span>{' '}
+                              {segment.departure.code} → {segment.arrival.code}
+                            </p>
+                            <p>
+                              <span className="font-semibold">Duration:</span>{' '}
+                              {Math.floor(segment.duration / 60)}h {segment.duration % 60}m
+                            </p>
+                            <p>
+                              <span className="font-semibold">Aircraft:</span> {segment.aircraft}
+                            </p>
+                            <p>
+                              <span className="font-semibold">Segment:</span> {segIndex + 1} of {flight.segments!.length}
+                            </p>
+                          </div>
+                        </div>
+                      </Popup>
+                    </Polyline>
+                  ));
+                }
+              }
+
+              // Fallback: draw simple line if no segment data
+              return (
+                <Polyline
+                  key={flight._id}
+                  positions={[departureCoords, arrivalCoords]}
+                  pathOptions={{
+                    color: index === 0 ? '#1E3A5F' : '#94a3b8',
+                    weight: index === 0 ? 3 : 2,
+                    opacity: index === 0 ? 0.8 : 0.4,
+                    dashArray: flight.stops > 0 ? '10, 10' : undefined,
+                  }}
+                >
+                  <Popup>
+                    <div className="min-w-[200px]">
+                      <div className="flex items-center gap-2 mb-2">
+                        <img
+                          src={flight.airline.logo}
+                          alt={flight.airline.name}
+                          className="w-8 h-8 object-contain"
+                        />
+                        <div>
+                          <p className="font-bold text-sm">{flight.flightNumber}</p>
+                          <p className="text-xs text-gray-600">{flight.airline.name}</p>
+                        </div>
+                      </div>
+                      <div className="text-xs space-y-1">
+                        <p>
+                          <span className="font-semibold">Duration:</span>{' '}
+                          {Math.floor(flight.duration / 60)}h {flight.duration % 60}m
+                        </p>
+                        <p>
+                          <span className="font-semibold">Stops:</span>{' '}
+                          {flight.stops === 0 ? 'Nonstop' : `${flight.stops} stop(s)`}
+                        </p>
+                        <p>
+                          <span className="font-semibold">Price:</span> ${flight.price.economy}
+                        </p>
                       </div>
                     </div>
-                    <div className="text-xs space-y-1">
-                      <p>
-                        <span className="font-semibold">Duration:</span>{' '}
-                        {Math.floor(flight.duration / 60)}h {flight.duration % 60}m
-                      </p>
-                      <p>
-                        <span className="font-semibold">Stops:</span>{' '}
-                        {flight.stops === 0 ? 'Nonstop' : `${flight.stops} stop(s)`}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Price:</span> ${flight.price.economy}
-                      </p>
-                    </div>
-                  </div>
-                </Popup>
-              </Polyline>
-            ))}
+                  </Popup>
+                </Polyline>
+              );
+            })}
           </MapContainer>
         </div>
 
@@ -248,15 +350,15 @@ export default function FlightMapView({ flights, departure, arrival, onClose }: 
           <div className="flex items-center gap-6 text-xs">
             <div className="flex items-center gap-2">
               <div className="w-4 h-0.5 bg-[#1E3A5F]"></div>
-              <span className="text-gray-700">Direct Flight</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-0.5 bg-gray-400 border-dashed border-t-2"></div>
-              <span className="text-gray-700">With Stops</span>
+              <span className="text-gray-700">Flight Route</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-              <span className="text-gray-700">Airport</span>
+              <span className="text-gray-700">Departure/Arrival</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+              <span className="text-gray-700">Layover Stop</span>
             </div>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { duffelClient } from '@/lib/duffel-client';
 import { airlineCache } from '@/lib/airline-cache';
+import { parseDuration } from '@/lib/flight-utils';
 import type { DuffelOffer } from '@/types/global';
 
 /**
@@ -19,14 +20,6 @@ export interface FlightFilter {
   maxStops?: number;
   cabinClass?: 'economy' | 'premium_economy' | 'business' | 'first';
 }
-
-// Helper to parse ISO duration (PT2H30M -> 150 minutes)
-const parseDuration = (duration: string): number => {
-  const match = duration.match(/PT(\d+H)?(\d+M)?/);
-  const hours = match?.[1] ? parseInt(match[1]) : 0;
-  const minutes = match?.[2] ? parseInt(match[2]) : 0;
-  return hours * 60 + minutes;
-};
 
 export async function fetchDuffelFlights(filters: FlightFilter) {
   try {
@@ -63,46 +56,117 @@ export async function fetchDuffelFlights(filters: FlightFilter) {
     );
 
     // Transform Duffel format to our component format
-    let transformedFlights = offers.map((offer: DuffelOffer) => {
-      const slice = offer.slices[0];
-      const firstSegment = slice.segments[0];
-      const lastSegment = slice.segments[slice.segments.length - 1];
+    let invalidOffersCount = 0;
+    let transformedFlights = offers
+      .map((offer: DuffelOffer) => {
+        // Defensive checks: validate offer structure
+        if (!offer.slices || !Array.isArray(offer.slices) || offer.slices.length === 0) {
+          console.warn('[Duffel Flight Transform] Skipping offer with invalid slices:', offer.id);
+          invalidOffersCount++;
+          return null;
+        }
 
-      const carrierCode = offer.owner.iata_code;
-      const stops = slice.segments.length - 1;
+        const slice = offer.slices[0];
+        
+        if (!slice.segments || !Array.isArray(slice.segments) || slice.segments.length === 0) {
+          console.warn('[Duffel Flight Transform] Skipping offer with invalid segments:', offer.id);
+          invalidOffersCount++;
+          return null;
+        }
 
-      // Get airline logo
-      const airlineLogo =
-        offer.owner.logo_symbol_url ||
-        `https://images.kiwi.com/airlines/64/${carrierCode}.png`;
+        const firstSegment = slice.segments[0];
+        const lastSegment = slice.segments[slice.segments.length - 1];
 
-      return {
-        _id: offer.id,
-        flightNumber: `${firstSegment.marketing_carrier.iata_code}${firstSegment.marketing_carrier_flight_number}`,
-        airline: {
-          _id: carrierCode,
-          code: carrierCode,
-          name: offer.owner.name,
-          logo: airlineLogo,
-        },
-        departure: {
-          code: firstSegment.origin.iata_code,
-          time: firstSegment.departing_at,
-        },
-        arrival: {
-          code: lastSegment.destination.iata_code,
-          time: lastSegment.arriving_at,
-        },
-        duration: parseDuration(slice.duration),
-        stops,
-        price: {
-          economy: parseFloat(offer.total_amount),
-        },
-        status: 'scheduled',
-        // Store full offer data for booking
-        rawOffer: offer,
-      };
-    });
+        // Validate required fields exist
+        if (!firstSegment || !lastSegment || !offer.owner) {
+          console.warn('[Duffel Flight Transform] Skipping offer with missing required data:', offer.id);
+          invalidOffersCount++;
+          return null;
+        }
+
+        const carrierCode = offer.owner.iata_code;
+        const stops = slice.segments.length - 1;
+
+        // Get airline logo
+        const airlineLogo =
+          offer.owner.logo_symbol_url ||
+          `https://images.kiwi.com/airlines/64/${carrierCode}.png`;
+
+        // Extract segment details for route visualization
+        const segments = slice.segments.map((segment: any) => ({
+          departure: {
+            code: segment.origin.iata_code,
+            name: segment.origin.name,
+            city: segment.origin.city_name || segment.origin.name,
+            time: segment.departing_at,
+            latitude: segment.origin.latitude,
+            longitude: segment.origin.longitude,
+          },
+          arrival: {
+            code: segment.destination.iata_code,
+            name: segment.destination.name,
+            city: segment.destination.city_name || segment.destination.name,
+            time: segment.arriving_at,
+            latitude: segment.destination.latitude,
+            longitude: segment.destination.longitude,
+          },
+          carrier: {
+            code: segment.marketing_carrier.iata_code,
+            name: segment.marketing_carrier.name,
+            flightNumber: `${segment.marketing_carrier.iata_code}${segment.marketing_carrier_flight_number}`,
+          },
+          duration: parseDuration(segment.duration),
+          aircraft: segment.aircraft?.name || 'Unknown',
+        }));
+
+        // Extract stop airports (intermediate airports between first and last)
+        const stopAirports = slice.segments.slice(0, -1).map((segment: any) => ({
+          code: segment.destination.iata_code,
+          name: segment.destination.name,
+          city: segment.destination.city_name || segment.destination.name,
+          latitude: segment.destination.latitude,
+          longitude: segment.destination.longitude,
+        }));
+
+        return {
+          _id: offer.id,
+          flightNumber: `${firstSegment.marketing_carrier.iata_code}${firstSegment.marketing_carrier_flight_number}`,
+          airline: {
+            _id: carrierCode,
+            code: carrierCode,
+            name: offer.owner.name,
+            logo: airlineLogo,
+          },
+          departure: {
+            code: firstSegment.origin.iata_code,
+            time: firstSegment.departing_at,
+            latitude: firstSegment.origin.latitude,
+            longitude: firstSegment.origin.longitude,
+          },
+          arrival: {
+            code: lastSegment.destination.iata_code,
+            time: lastSegment.arriving_at,
+            latitude: lastSegment.destination.latitude,
+            longitude: lastSegment.destination.longitude,
+          },
+          duration: parseDuration(slice.duration),
+          stops,
+          stopAirports,
+          segments,
+          price: {
+            economy: parseFloat(offer.total_amount),
+          },
+          status: 'scheduled',
+          // Store full offer data for booking
+          rawOffer: offer,
+        };
+      })
+      .filter((flight): flight is NonNullable<typeof flight> => flight !== null);
+
+    // Log if any offers were filtered out
+    if (invalidOffersCount > 0) {
+      console.warn(`[Duffel Flight Transform] Filtered out ${invalidOffersCount} invalid offer(s) from ${offers.length} total offers`);
+    }
 
     // Apply client-side filters
     let filteredFlights = transformedFlights;

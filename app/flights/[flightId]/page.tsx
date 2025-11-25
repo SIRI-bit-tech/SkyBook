@@ -36,17 +36,23 @@ export default function FlightDetailsPage() {
         setError(null);
         
         // Try to get flight from sessionStorage (client-side cache)
-        // This works because FlightResults component caches search results
-        const cachedFlights = sessionStorage.getItem('flightSearchResults');
-        if (cachedFlights) {
-          const flights: FlightResult[] = JSON.parse(cachedFlights);
-          const foundFlight = flights.find(f => f.id === params.flightId);
-          
-          if (foundFlight) {
-            setFlight(foundFlight);
-            setLoading(false);
-            return;
+        // Wrap in try-catch to handle SecurityError in restricted contexts
+        try {
+          const cachedFlights = sessionStorage.getItem('flightSearchResults');
+          if (cachedFlights) {
+            const flights: FlightResult[] = JSON.parse(cachedFlights);
+            const foundFlight = flights.find(f => f.id === params.flightId);
+            
+            if (foundFlight) {
+              setFlight(foundFlight);
+              setLoading(false);
+              return;
+            }
           }
+        } catch (storageError) {
+          // SessionStorage inaccessible (SecurityError, QuotaExceededError, etc.)
+          // Fall through to API fetch
+          console.warn('SessionStorage access failed:', storageError);
         }
 
         // If not in sessionStorage, try the API

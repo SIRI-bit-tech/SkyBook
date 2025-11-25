@@ -17,11 +17,12 @@ interface FlightResultsProps {
   loading: boolean;
   error: string | null;
   filters: Filters;
+  passengers: number;
 }
 
 type SortOption = 'price-low' | 'price-high' | 'duration-short' | 'duration-long' | 'departure-early' | 'departure-late';
 
-export default function FlightResults({ flights, loading, error, filters }: FlightResultsProps) {
+export default function FlightResults({ flights, loading, error, filters, passengers }: FlightResultsProps) {
   const router = useRouter();
   const [sortBy, setSortBy] = useState<SortOption>('price-low');
   const [compareFlights, setCompareFlights] = useState<FlightResult[]>([]);
@@ -186,7 +187,7 @@ export default function FlightResults({ flights, loading, error, filters }: Flig
     // Navigate to passenger details
     const searchParams = new URLSearchParams({
       flightId: flight.id,
-      passengers: '1',
+      passengers: passengers.toString(),
     });
     router.push(`/passenger-details?${searchParams.toString()}`);
   };

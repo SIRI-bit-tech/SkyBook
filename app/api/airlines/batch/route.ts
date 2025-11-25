@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { duffelClient } from "@/lib/duffel-client";
+import { airlineCache } from "@/lib/airline-cache";
 
 /**
  * Batch Airlines API - Fetches multiple airline data efficiently
@@ -27,11 +27,8 @@ export async function POST(request: NextRequest) {
     const limitedCodes = codes.slice(0, MAX_BATCH_SIZE);
 
     try {
-      // Fetch all airlines from Duffel and filter by requested codes
-      const allAirlines = await duffelClient.listAirlines();
-      const requestedAirlines = allAirlines.filter((airline: any) => 
-        limitedCodes.includes(airline.iata_code)
-      );
+      // Fetch only requested airlines using cache
+      const requestedAirlines = await airlineCache.getAirlines(limitedCodes);
       
       return NextResponse.json({
         success: true,

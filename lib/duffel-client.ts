@@ -8,13 +8,25 @@ import type { DuffelOffer, DuffelOfferRequest, DuffelOrder, DuffelPlace } from '
  * Documentation: https://duffel.com/docs/api
  */
 class DuffelClient {
-  private client: AxiosInstance;
-  private apiToken: string;
+  private client?: AxiosInstance;
+  private apiToken?: string;
   private baseUrl: string;
+  private initialized: boolean = false;
 
   constructor() {
-    this.apiToken = process.env.DUFFEL_API_TOKEN || '';
     this.baseUrl = 'https://api.duffel.com';
+  }
+
+  /**
+   * Lazy initialization - only throws when methods are actually called
+   * This prevents module crashes at import time
+   */
+  private ensureInitialized(): void {
+    if (this.initialized) {
+      return;
+    }
+
+    this.apiToken = process.env.DUFFEL_API_TOKEN;
 
     if (!this.apiToken) {
       throw new Error('DUFFEL_API_TOKEN is not configured in environment variables');
@@ -30,6 +42,8 @@ class DuffelClient {
       },
       timeout: 30000,
     });
+
+    this.initialized = true;
   }
 
   /**
@@ -47,6 +61,8 @@ class DuffelClient {
     cabinClass?: 'economy' | 'premium_economy' | 'business' | 'first',
     maxConnections?: number
   ): Promise<DuffelOffer[]> {
+    this.ensureInitialized();
+    
     try {
       // Build passengers array
       const passengers = [];
@@ -91,16 +107,29 @@ class DuffelClient {
         requestBody.max_connections = maxConnections;
       }
 
-      const response = await this.client.post('/air/offer_requests', {
+      const response = await this.client!.post('/air/offer_requests', {
         data: requestBody,
       });
 
       const offerRequestId = response.data.data.id;
 
-      // Get offers from the request
-      const offersResponse = await this.client.get(`/air/offers?offer_request_id=${offerRequestId}`);
+      // Get offers from the request with pagination
+      const offers: DuffelOffer[] = [];
+      let cursor: string | undefined = undefined;
       
-      const offers: DuffelOffer[] = offersResponse.data.data || [];
+      do {
+        const url: string = cursor 
+          ? `/air/offers?offer_request_id=${offerRequestId}&limit=200&after=${cursor}`
+          : `/air/offers?offer_request_id=${offerRequestId}&limit=200`;
+        
+        const offersResponse: any = await this.client!.get(url);
+        
+        const pageOffers = offersResponse.data.data || [];
+        offers.push(...pageOffers);
+        
+        // Check if there are more pages
+        cursor = offersResponse.data.meta?.after;
+      } while (cursor);
 
       return offers;
     } catch (error: any) {
@@ -113,8 +142,10 @@ class DuffelClient {
    * Get a specific offer by ID
    */
   async getOffer(offerId: string): Promise<DuffelOffer | null> {
+    this.ensureInitialized();
+    
     try {
-      const response = await this.client.get(`/air/offers/${offerId}`);
+      const response = await this.client!.get(`/air/offers/${offerId}`);
       return response.data.data;
     } catch (error: any) {
       console.error('Duffel get offer error:', error.response?.data || error.message);
@@ -143,8 +174,10 @@ class DuffelClient {
       currency: string;
     }>
   ): Promise<DuffelOrder> {
+    this.ensureInitialized();
+    
     try {
-      const response = await this.client.post('/air/orders', {
+      const response = await this.client!.post('/air/orders', {
         data: {
           selected_offers: selectedOffers,
           passengers,
@@ -164,8 +197,10 @@ class DuffelClient {
    * Get an order by ID
    */
   async getOrder(orderId: string): Promise<DuffelOrder | null> {
+    this.ensureInitialized();
+    
     try {
-      const response = await this.client.get(`/air/orders/${orderId}`);
+      const response = await this.client!.get(`/air/orders/${orderId}`);
       return response.data.data;
     } catch (error: any) {
       console.error('Duffel get order error:', error.response?.data || error.message);
@@ -177,8 +212,10 @@ class DuffelClient {
    * Cancel an order
    */
   async cancelOrder(orderId: string): Promise<boolean> {
+    this.ensureInitialized();
+    
     try {
-      await this.client.post(`/air/orders/${orderId}/cancellations`, {
+      await this.client!.post(`/air/orders/${orderId}/cancellations`, {
         data: {},
       });
       return true;
@@ -192,8 +229,10 @@ class DuffelClient {
    * Search for airports/places
    */
   async searchPlaces(query: string): Promise<DuffelPlace[]> {
+    this.ensureInitialized();
+    
     try {
-      const response = await this.client.get('/places/suggestions', {
+      const response = await this.client!.get('/places/suggestions', {
         params: {
           query,
         },
@@ -210,8 +249,10 @@ class DuffelClient {
    * Get airline information
    */
   async getAirline(iataCode: string): Promise<any> {
+    this.ensureInitialized();
+    
     try {
-      const response = await this.client.get(`/air/airlines/${iataCode}`);
+      const response = await this.client!.get(`/air/airlines/${iataCode}`);
       return response.data.data;
     } catch (error: any) {
       console.error('Duffel get airline error:', error.response?.data || error.message);
@@ -223,9 +264,27 @@ class DuffelClient {
    * List all airlines
    */
   async listAirlines(): Promise<any[]> {
+    this.ensureInitialized();
+    
     try {
-      const response = await this.client.get('/air/airlines');
-      return response.data.data || [];
+      const airlines: any[] = [];
+      let cursor: string | undefined = undefined;
+      
+      do {
+        const url: string = cursor 
+          ? `/air/airlines?limit=200&after=${cursor}`
+          : `/air/airlines?limit=200`;
+        
+        const response: any = await this.client!.get(url);
+        
+        const pageAirlines = response.data.data || [];
+        airlines.push(...pageAirlines);
+        
+        // Check if there are more pages
+        cursor = response.data.meta?.after;
+      } while (cursor);
+      
+      return airlines;
     } catch (error: any) {
       console.error('Duffel list airlines error:', error.response?.data || error.message);
       return [];

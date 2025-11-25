@@ -26,21 +26,23 @@ export async function GET(request: NextRequest) {
     // Search using OpenFlights data (fast, no API calls)
     const airports = searchAirports(query, 10);
 
-    // Transform to expected format
-    const results = airports.map((airport) => ({
-      _id: airport.code,
+    // Transform to match global Airport type and consumer expectations
+    const data = airports.map((airport) => ({
+      id: airport.code,
+      iataCode: airport.code,
       name: airport.name,
       code: airport.code,
       city: airport.city,
       country: airport.country,
       region: airport.region,
+      timezone: 'UTC',
       displayName: `${airport.name} (${airport.code})`,
     }));
 
     return NextResponse.json({
       success: true,
-      results,
-      count: results.length,
+      data,
+      count: data.length,
       source: 'openflights',
     });
   } catch (error: any) {

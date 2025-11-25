@@ -16,6 +16,11 @@ interface FlightCardFlight {
   arrival: { code?: string; time?: string | Date };
   duration: number;
   stops?: number;
+  stopAirports?: Array<{
+    code: string;
+    name: string;
+    city: string;
+  }>;
   price: { economy?: number };
 }
 
@@ -150,8 +155,11 @@ export default function FlightCard({ flight, passengers }: FlightCardProps) {
               {(flight.stops ?? 0) === 0 ? (
                 <span className="text-emerald-600 font-medium">Nonstop</span>
               ) : (
-                <span className="text-orange-600 font-medium">
+                <span className="text-orange-600 font-medium" title={flight.stopAirports?.map(s => s.code).join(', ')}>
                   {flight.stops} Stop{(flight.stops ?? 0) > 1 ? 's' : ''}
+                  {flight.stopAirports && flight.stopAirports.length > 0 && (
+                    <span className="text-gray-500"> via {flight.stopAirports.map(s => s.code).join(', ')}</span>
+                  )}
                 </span>
               )}
             </p>
