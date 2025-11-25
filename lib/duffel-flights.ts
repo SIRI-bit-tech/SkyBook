@@ -92,6 +92,42 @@ export async function fetchDuffelFlights(filters: FlightFilter) {
           offer.owner.logo_symbol_url ||
           `https://images.kiwi.com/airlines/64/${carrierCode}.png`;
 
+        // Extract segment details for route visualization
+        const segments = slice.segments.map((segment: any) => ({
+          departure: {
+            code: segment.origin.iata_code,
+            name: segment.origin.name,
+            city: segment.origin.city_name || segment.origin.name,
+            time: segment.departing_at,
+            latitude: segment.origin.latitude,
+            longitude: segment.origin.longitude,
+          },
+          arrival: {
+            code: segment.destination.iata_code,
+            name: segment.destination.name,
+            city: segment.destination.city_name || segment.destination.name,
+            time: segment.arriving_at,
+            latitude: segment.destination.latitude,
+            longitude: segment.destination.longitude,
+          },
+          carrier: {
+            code: segment.marketing_carrier.iata_code,
+            name: segment.marketing_carrier.name,
+            flightNumber: `${segment.marketing_carrier.iata_code}${segment.marketing_carrier_flight_number}`,
+          },
+          duration: parseDuration(segment.duration),
+          aircraft: segment.aircraft?.name || 'Unknown',
+        }));
+
+        // Extract stop airports (intermediate airports between first and last)
+        const stopAirports = slice.segments.slice(0, -1).map((segment: any) => ({
+          code: segment.destination.iata_code,
+          name: segment.destination.name,
+          city: segment.destination.city_name || segment.destination.name,
+          latitude: segment.destination.latitude,
+          longitude: segment.destination.longitude,
+        }));
+
         return {
           _id: offer.id,
           flightNumber: `${firstSegment.marketing_carrier.iata_code}${firstSegment.marketing_carrier_flight_number}`,
@@ -104,13 +140,19 @@ export async function fetchDuffelFlights(filters: FlightFilter) {
           departure: {
             code: firstSegment.origin.iata_code,
             time: firstSegment.departing_at,
+            latitude: firstSegment.origin.latitude,
+            longitude: firstSegment.origin.longitude,
           },
           arrival: {
             code: lastSegment.destination.iata_code,
             time: lastSegment.arriving_at,
+            latitude: lastSegment.destination.latitude,
+            longitude: lastSegment.destination.longitude,
           },
           duration: parseDuration(slice.duration),
           stops,
+          stopAirports,
+          segments,
           price: {
             economy: parseFloat(offer.total_amount),
           },

@@ -9,10 +9,42 @@ interface SimplifiedFlight {
   _id: string;
   flightNumber: string;
   airline: { _id?: string; name: string; code: string; logo: string };
-  departure: { code: string; time: string };
-  arrival: { code: string; time: string };
+  departure: { code: string; time: string; latitude?: number; longitude?: number };
+  arrival: { code: string; time: string; latitude?: number; longitude?: number };
   duration: number;
   stops: number;
+  stopAirports?: Array<{
+    code: string;
+    name: string;
+    city: string;
+    latitude?: number;
+    longitude?: number;
+  }>;
+  segments?: Array<{
+    departure: {
+      code: string;
+      name: string;
+      city: string;
+      time: string;
+      latitude?: number;
+      longitude?: number;
+    };
+    arrival: {
+      code: string;
+      name: string;
+      city: string;
+      time: string;
+      latitude?: number;
+      longitude?: number;
+    };
+    carrier: {
+      code: string;
+      name: string;
+      flightNumber: string;
+    };
+    duration: number;
+    aircraft: string;
+  }>;
   price: { economy: number };
   status: string;
 }
